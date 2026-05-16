@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HipEdit — Prompt Template Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; font-family: 'DM Sans', sans-serif; }
+  .sidebar { overflow-y: auto; }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: #d1c9b8; border-radius: 2px; }
+  .vars-scroll { overflow-y: auto; }
+  .vars-scroll::-webkit-scrollbar { width: 4px; }
+  .vars-scroll::-webkit-scrollbar-track { background: transparent; }
+  .vars-scroll::-webkit-scrollbar-thumb { background: #d1c9b8; border-radius: 2px; }
+  .chip-btn { transition: all 0.12s; }
+  .chip-btn:hover { background: #e8e2d9; }
+  .chip-btn.selected { background: #2d2926; color: #f5f0e8; border-color: #2d2926; }
+  .var-input:focus { outline: none; border-color: #9c8e7e; }
+  .prompt-area { resize: none; font-family: monospace; }
+  .prompt-area:focus { outline: none; }
+  .drag-handle { cursor: ns-resize; user-select: none; }
+  textarea:focus { outline: none; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(45,41,38,0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .modal-box { animation: slideUp 0.18s ease; }
+  @keyframes slideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+
+<div id="app" class="flex flex-col bg-stone-50" style="height:100vh; font-family:'DM Sans',sans-serif; overflow:hidden;">
+
+  <nav class="flex items-center px-5 h-12 border-b border-stone-200 bg-white flex-shrink-0 gap-3">
+    <span class="font-semibold text-stone-800 text-sm tracking-tight">Hip<span class="text-amber-700">Edit</span></span>
+    <span class="w-px h-4 bg-stone-200"></span>
+    <span class="text-stone-400 text-xs font-medium tracking-wide uppercase">AI Prompt Template Editor</span>
+    <button id="btn-open-modal" class="ml-auto text-xs font-medium bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-md transition-colors">Request a Template</button>
+    <div class="relative" id="share-container">
+      <button id="btn-share" class="flex items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-stone-800 border border-stone-200 hover:border-stone-300 bg-white px-3 py-1.5 rounded-md transition-colors">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Share
+      </button>
+      <div id="share-dropdown" style="display:none; position:absolute; right:0; top:calc(100% + 6px); background:white; border:0.5px solid #e7e5e4; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,0.08); min-width:180px; z-index:100; overflow:hidden;">
+        <div style="padding:6px;">
+          <a id="share-x" href="#" class="share-option" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;text-decoration:none;color:#44403c;font-size:12px;transition:background 0.1s;" onmouseover="this.style.background='#f5f5f4'" onmouseout="this.style.background='transparent'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            Share on X
+          </a>
+          <a id="share-linkedin" href="#" class="share-option" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;text-decoration:none;color:#44403c;font-size:12px;transition:background 0.1s;" onmouseover="this.style.background='#f5f5f4'" onmouseout="this.style.background='transparent'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
+            Share on LinkedIn
+          </a>
+          <a id="share-facebook" href="#" class="share-option" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;text-decoration:none;color:#44403c;font-size:12px;transition:background 0.1s;" onmouseover="this.style.background='#f5f5f4'" onmouseout="this.style.background='transparent'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+            Share on Facebook
+          </a>
+          <a id="share-reddit" href="#" class="share-option" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;text-decoration:none;color:#44403c;font-size:12px;transition:background 0.1s;" onmouseover="this.style.background='#f5f5f4'" onmouseout="this.style.background='transparent'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><path fill="white" d="M20 12a2 2 0 0 0-2-2 2 2 0 0 0-1.4.6A9.9 9.9 0 0 0 12.5 9l.9-3.9 2.8.6a1.5 1.5 0 1 0 .2-.9l-3.1-.7L12 8a9.9 9.9 0 0 0-4.1 1.6A2 2 0 1 0 5.6 13a3.6 3.6 0 0 0 0 .5c0 2.5 2.9 4.5 6.4 4.5s6.4-2 6.4-4.5a3.6 3.6 0 0 0 0-.5A2 2 0 0 0 20 12zm-10 1.5a1 1 0 1 1 2 0 1 1 0 0 1-2 0zm5.6 2.6a3.5 3.5 0 0 1-3.6 0 .3.3 0 0 1 .3-.5 2.9 2.9 0 0 0 3 0 .3.3 0 0 1 .3.5zm-.1-1.6a1 1 0 1 1 2 0 1 1 0 0 1-2 0z"/></svg>
+            Share on Reddit
+          </a>
+          <div style="height:0.5px;background:#e7e5e4;margin:4px 0;"></div>
+          <a id="share-copy" href="#" class="share-option" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;text-decoration:none;color:#44403c;font-size:12px;transition:background 0.1s;" onmouseover="this.style.background='#f5f5f4'" onmouseout="this.style.background='transparent'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy link
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex flex-1 min-h-0">
+
+    <aside class="sidebar w-48 flex-shrink-0 border-r border-stone-200 bg-white py-4">
+      <div id="sidebar-content"></div>
+    </aside>
+
+    <div class="flex flex-col flex-1 min-w-0 min-h-0">
+
+      <div class="px-6 pt-5 pb-4 border-b border-stone-200 bg-white flex-shrink-0">
+        <p style="font-family:'Instrument Serif',serif;" class="text-2xl text-stone-800 leading-snug">Discover, use, and share great prompts<br><span class="italic text-stone-400">so you can get meaningful outcomes from your AI tools.</span></p>
+      </div>
+
+      <div class="px-6 py-3 border-b border-stone-100 bg-stone-50 flex-shrink-0">
+        <div class="flex items-center gap-2 mb-0.5">
+          <span id="tpl-title" class="text-sm font-semibold text-stone-800"></span>
+          <span id="tpl-cat" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded"></span>
+        </div>
+        <p id="tpl-desc" class="text-xs text-stone-400 leading-snug"></p>
+      </div>
+
+      <div id="prompt-section" class="flex-shrink-0 bg-white border-b border-stone-200 flex flex-col" style="height:172px; min-height:80px; max-height:60vh;">
+        <div class="px-6 pt-4 pb-2 flex-shrink-0">
+          <label class="text-xs font-semibold tracking-widest uppercase text-stone-400 block mb-2">Prompt</label>
+        </div>
+        <textarea id="prompt-editor" class="prompt-area flex-1 mx-6 bg-stone-50 border border-stone-200 rounded-lg p-3 text-xs leading-relaxed text-stone-700 mb-2" spellcheck="false"></textarea>
+        <div class="drag-handle flex-shrink-0 flex items-center justify-center h-5 border-t border-stone-100 bg-stone-50 group" id="drag-handle">
+          <div class="flex gap-1">
+            <div class="w-4 h-0.5 rounded-full bg-stone-300 group-hover:bg-stone-400 transition-colors"></div>
+            <div class="w-4 h-0.5 rounded-full bg-stone-300 group-hover:bg-stone-400 transition-colors"></div>
+            <div class="w-4 h-0.5 rounded-full bg-stone-300 group-hover:bg-stone-400 transition-colors"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="vars-scroll flex-1 px-6 py-4 bg-stone-50 min-h-0">
+        <p class="text-xs font-semibold tracking-widest uppercase text-stone-400 mb-3">Variables</p>
+        <div id="vars-grid" class="grid grid-cols-2 gap-3"></div>
+      </div>
+
+      <div class="flex gap-3 px-6 py-3 border-t border-stone-200 bg-white flex-shrink-0">
+        <button id="btn-copy" class="flex-1 flex items-center justify-center gap-2 bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium rounded-lg py-2.5 transition-colors">
+          &#x2398; Copy Prompt to Clipboard
+        </button>
+        <button class="flex-1 flex items-center justify-center gap-2 bg-stone-100 text-stone-400 text-sm font-medium rounded-lg py-2.5 cursor-default border border-stone-200">
+          &#9654; Run with Variables <span class="text-xs text-stone-300 ml-1">coming soon</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" style="display:none;" class="modal-overlay">
+  <div class="modal-box bg-white rounded-xl border border-stone-200 w-80 mx-4 overflow-hidden">
+    <div class="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+      <div>
+        <p class="text-sm font-semibold text-stone-800">Request a Template</p>
+        <p class="text-xs text-stone-400 mt-0.5">Tell us what you need — we'll build it.</p>
+      </div>
+      <button id="btn-close-modal" aria-label="Close" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;border:none;background:transparent;cursor:pointer;color:#a8a29e;" onmouseover="this.style.background='#f5f5f4';this.style.color='#57534e'" onmouseout="this.style.background='transparent';this.style.color='#a8a29e'">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1L13 13M13 1L1 13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="px-5 py-4 flex flex-col gap-4">
+      <div>
+        <label class="text-xs font-semibold tracking-widest uppercase text-stone-400 block mb-1.5">Template Name</label>
+        <input id="req-name" type="text" placeholder="e.g. LinkedIn Post Generator" class="var-input w-full border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-700 bg-stone-50" style="font-family:'DM Sans',sans-serif;" />
+      </div>
+      <div>
+        <label class="text-xs font-semibold tracking-widest uppercase text-stone-400 block mb-1.5">Category</label>
+        <input id="req-category" type="text" placeholder="e.g. Content Writing, Marketing, Code & Dev" class="var-input w-full border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-700 bg-stone-50" style="font-family:'DM Sans',sans-serif;" />
+      </div>
+      <div>
+        <label class="text-xs font-semibold tracking-widest uppercase text-stone-400 block mb-1.5">What should it do?</label>
+        <textarea id="req-description" placeholder="Describe what you want this template to help with..." class="var-input w-full border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-700 bg-stone-50 min-h-20" style="resize:none;font-family:'DM Sans',sans-serif;"></textarea>
+      </div>
+      <button id="btn-submit-request" class="w-full bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium rounded-lg py-2.5 transition-colors">Submit Request</button>
+      <p id="form-feedback" style="display:none;" class="text-xs text-center text-stone-500"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const TEMPLATES = {
+
+  // ── Content Writing ──────────────────────────────────────────────
+  "Blog Post Generator": {
+    cat: "Content Writing",
+    desc: "Generate a structured, well-formatted blog post on any topic — tailored to your audience, tone, and length.",
+    prompt: `You are an expert content writer specializing in [TOPIC] for [AUDIENCE].
+
+Write a [TONE] blog post titled "[TITLE]" that is approximately [LENGTH] words.
+
+The post should open with a compelling hook about [HOOK_ANGLE], include [NUM_SECTIONS] main sections with H2 headers, and end with a clear call-to-action: [CTA].
+
+Format in Markdown. Use real examples and avoid generic advice.`,
+    vars: {
+      TITLE:        { full: true,  chips: [], def: "Why AI is the PM's new superpower" },
+      TONE:         { full: false, chips: ["Professional","Casual","Witty","Authoritative"], def: "Professional" },
+      AUDIENCE:     { full: false, chips: ["Beginners","Developers","Executives","General public"], def: "Developers" },
+      TOPIC:        { full: false, chips: ["AI & Tech","Marketing","Productivity"], def: "AI & Tech" },
+      LENGTH:       { full: false, chips: ["300","800","1500"], labels: {"300":"Short (300w)","800":"Medium (800w)","1500":"Long (1500w)"}, def: "800" },
+      NUM_SECTIONS: { full: false, chips: ["3","5","7"], def: "5" },
+      HOOK_ANGLE:   { full: false, chips: ["a surprising statistic","a common misconception","a bold prediction"], labels: {"a surprising statistic":"Surprising stat","a common misconception":"Misconception","a bold prediction":"Bold prediction"}, def: "a surprising statistic" },
+      CTA:          { full: false, chips: ["Sign up for our newsletter","Book a free demo","Share this post"], labels: {"Sign up for our newsletter":"Newsletter signup","Book a free demo":"Book a demo","Share this post":"Share post"}, def: "Try it free today" }
+    }
+  },
+
+  "Product Description": {
+    cat: "Content Writing",
+    desc: "Write compelling, conversion-focused product descriptions tailored to your platform, customer, and brand voice.",
+    prompt: `You are an expert ecommerce copywriter who specializes in writing product descriptions that convert browsers into buyers.
+
+Write a [TONE] product description for "[PRODUCT_NAME]", a [PRODUCT_CATEGORY] product.
+
+Target customer: [AUDIENCE]
+Key benefits to highlight: [KEY_BENEFITS]
+Word count: approximately [LENGTH] words
+
+Structure the description with a punchy opening line, 2–3 sentences expanding on the core value, and a short bulleted feature list (3–5 bullets). End with a single confident closing sentence.
+
+Platform: [PLATFORM]. Avoid jargon. Do not use exclamation marks more than once.`,
+    vars: {
+      PRODUCT_NAME:     { full: true,  chips: [], def: "Ember Travel Mug" },
+      PRODUCT_CATEGORY: { full: false, chips: ["Kitchenware","Electronics","Apparel","Beauty","Fitness","Home Decor"], def: "Kitchenware" },
+      TONE:             { full: false, chips: ["Warm & friendly","Premium & refined","Bold & energetic","Minimalist"], def: "Warm & friendly" },
+      AUDIENCE:         { full: false, chips: ["Busy professionals","Home cooks","Outdoor enthusiasts","Gift shoppers"], def: "Busy professionals" },
+      KEY_BENEFITS:     { full: true,  chips: ["Temperature control, sleek design, leak-proof","Lightweight, durable, eco-friendly","Fast results, easy to use, compact"], def: "Temperature control, sleek design, leak-proof" },
+      LENGTH:           { full: false, chips: ["50","100","150"], labels: {"50":"Short (50w)","100":"Standard (100w)","150":"Long (150w)"}, def: "100" },
+      PLATFORM:         { full: false, chips: ["Amazon","Shopify store","Instagram","Brand website"], def: "Shopify store" }
+    }
+  },
+
+  "Social Media Caption": {
+    cat: "Content Writing",
+    desc: "Craft engaging, on-brand captions for any social platform — with the right tone, hooks, and hashtag strategy.",
+    prompt: `You are a social media strategist and copywriter with deep expertise in [PLATFORM] content.
+
+Write a [TONE] caption for a post about [TOPIC].
+
+Brand voice: [BRAND_VOICE]
+Caption length: [LENGTH]
+Include [HASHTAG_COUNT] relevant hashtags at the end.
+Call-to-action: [CTA]
+
+The caption should hook the reader in the first line (no "Are you..." openers). Write for scroll-stopping engagement. Emojis: [EMOJI_STYLE].`,
+    vars: {
+      TOPIC:         { full: true,  chips: [], def: "Launching our new summer collection" },
+      PLATFORM:      { full: false, chips: ["Instagram","LinkedIn","TikTok","Twitter/X","Facebook"], def: "Instagram" },
+      TONE:          { full: false, chips: ["Playful","Inspirational","Professional","Witty"], def: "Playful" },
+      BRAND_VOICE:   { full: false, chips: ["Friendly & approachable","Luxury & aspirational","Bold & disruptive","Calm & trustworthy"], def: "Friendly & approachable" },
+      LENGTH:        { full: false, chips: ["short","medium","long"], labels: {"short":"Short (1–2 lines)","medium":"Medium (3–4 lines)","long":"Long (5+ lines)"}, def: "medium" },
+      HASHTAG_COUNT: { full: false, chips: ["3","5","10","15"], def: "5" },
+      CTA:           { full: false, chips: ["Link in bio","Drop a comment","Tag a friend","Shop now"], def: "Link in bio" },
+      EMOJI_STYLE:   { full: false, chips: ["None","Minimal (1–2)","Moderate (3–5)","Heavy"], def: "Minimal (1–2)" }
+    }
+  },
+
+  // ── Customer Support ─────────────────────────────────────────────
+  "Reply to Complaint": {
+    cat: "Customer Support",
+    desc: "Write a calm, professional response to a customer complaint that acknowledges the issue and moves toward resolution.",
+    prompt: `You are a senior customer support specialist known for turning frustrated customers into loyal ones.
+
+A customer has submitted the following type of complaint: [COMPLAINT_TYPE]
+Their frustration level appears to be: [FRUSTRATION_LEVEL]
+Our company's name: [COMPANY_NAME]
+
+Write a [TONE] reply that:
+1. Opens by genuinely acknowledging the customer's experience (do not use "I'm sorry for any inconvenience")
+2. Takes appropriate ownership without admitting legal liability
+3. Clearly explains the next step or resolution: [RESOLUTION]
+4. Closes warmly and invites further contact
+
+Keep it under [LENGTH] words. Do not use corporate jargon or hollow phrases.`,
+    vars: {
+      COMPLAINT_TYPE:    { full: true,  chips: ["Delayed shipment","Wrong item received","Billing error","Poor service experience","Product defect"], def: "Delayed shipment" },
+      RESOLUTION:        { full: true,  chips: ["Full refund issued","Replacement being shipped","Account credit applied","Escalated to specialist"], def: "Replacement being shipped" },
+      COMPANY_NAME:      { full: false, chips: [], def: "Acme Co." },
+      FRUSTRATION_LEVEL: { full: false, chips: ["Mildly annoyed","Quite upset","Very angry"], def: "Quite upset" },
+      TONE:              { full: false, chips: ["Empathetic","Professional","Warm","Direct"], def: "Empathetic" },
+      LENGTH:            { full: false, chips: ["100","150","200"], labels: {"100":"Brief (100w)","150":"Standard (150w)","200":"Detailed (200w)"}, def: "150" }
+    }
+  },
+
+  "Refund Response": {
+    cat: "Customer Support",
+    desc: "Respond to a refund request clearly and professionally — whether approving, denying, or offering an alternative.",
+    prompt: `You are a customer support agent handling a refund request for [COMPANY_NAME].
+
+Refund decision: [DECISION]
+Reason for request: [REASON]
+Order or account context: [CONTEXT]
+
+Write a [TONE] response that:
+1. Addresses the customer by acknowledging their request directly
+2. Clearly communicates the decision and the reason in plain language
+3. If approving: states the timeline and method for the refund
+4. If denying: offers a fair alternative such as [ALTERNATIVE]
+5. Ends with a genuine closing that reinforces trust
+
+Do not use templates language like "valued customer." Be specific and human.`,
+    vars: {
+      CONTEXT:      { full: true,  chips: [], def: "Customer purchased 3 weeks ago, product unused" },
+      COMPANY_NAME: { full: false, chips: [], def: "Acme Co." },
+      DECISION:     { full: false, chips: ["Approved","Denied","Partial refund"], def: "Approved" },
+      REASON:       { full: false, chips: ["Product defective","Changed their mind","Duplicate order","Service not delivered"], def: "Product defective" },
+      TONE:         { full: false, chips: ["Empathetic","Professional","Direct","Warm"], def: "Professional" },
+      ALTERNATIVE:  { full: false, chips: ["Store credit","Exchange for another product","Extended warranty","Discount on next purchase"], def: "Store credit" }
+    }
+  },
+
+  "Onboarding Email": {
+    cat: "Customer Support",
+    desc: "Write a warm, helpful onboarding email that sets new customers up for success from day one.",
+    prompt: `You are writing on behalf of [COMPANY_NAME], a [PRODUCT_TYPE] company.
+
+Write a [TONE] onboarding email for a new customer who just signed up for [PRODUCT_NAME].
+
+The email should:
+1. Open with a welcoming line that feels personal, not corporate
+2. Confirm what they now have access to
+3. Highlight the [NUM_STEPS] most important first steps they should take: [FIRST_STEPS]
+4. Point them to [SUPPORT_RESOURCE] if they need help
+5. Close with encouragement and a clear primary CTA: [CTA]
+
+Target audience: [AUDIENCE]. Keep it [LENGTH] and scannable. Use short paragraphs.`,
+    vars: {
+      PRODUCT_NAME:     { full: true,  chips: [], def: "HipEdit Pro" },
+      FIRST_STEPS:      { full: true,  chips: ["Complete your profile, explore templates, copy your first prompt","Connect your tools, invite your team, run your first workflow","Watch the intro video, set your preferences, try a template"], def: "Complete your profile, explore templates, copy your first prompt" },
+      COMPANY_NAME:     { full: false, chips: [], def: "HipEdit" },
+      PRODUCT_TYPE:     { full: false, chips: ["SaaS","ecommerce","marketplace","productivity tool"], def: "SaaS" },
+      TONE:             { full: false, chips: ["Warm & friendly","Professional","Energetic","Calm & clear"], def: "Warm & friendly" },
+      AUDIENCE:         { full: false, chips: ["Non-technical users","Developers","Marketing teams","Small business owners"], def: "Non-technical users" },
+      NUM_STEPS:        { full: false, chips: ["2","3","4"], def: "3" },
+      SUPPORT_RESOURCE: { full: false, chips: ["our Help Center","our live chat","our onboarding docs","our community forum"], def: "our Help Center" },
+      CTA:              { full: false, chips: ["Get started now","Explore your dashboard","Book an onboarding call","Try your first template"], def: "Get started now" },
+      LENGTH:           { full: false, chips: ["concise (under 150 words)","moderate (150–250 words)","detailed (250–400 words)"], def: "concise (under 150 words)" }
+    }
+  },
+
+  // ── Code & Dev ───────────────────────────────────────────────────
+  "Code Review": {
+    cat: "Code & Dev",
+    desc: "Get a structured, actionable code review covering correctness, performance, readability, and best practices.",
+    prompt: `You are a senior [LANGUAGE] engineer conducting a thorough code review.
+
+Review the following code with a focus on: [FOCUS_AREAS]
+
+Experience level of the author: [AUTHOR_LEVEL]
+Codebase context: [CONTEXT]
+
+Structure your review as follows:
+1. **Summary** — one paragraph overall assessment
+2. **Critical issues** — bugs, security holes, or logic errors that must be fixed
+3. **Improvements** — performance, readability, or maintainability suggestions
+4. **Positives** — what was done well (always include at least two)
+5. **Suggested refactor** — rewrite one key section with inline comments explaining changes
+
+Tone: [TONE]. Be direct but constructive. Do not nitpick style unless it affects readability.`,
+    vars: {
+      CONTEXT:      { full: true,  chips: ["REST API endpoint","React component","Database query","Authentication flow","Data processing script"], def: "REST API endpoint" },
+      LANGUAGE:     { full: false, chips: ["JavaScript","TypeScript","Python","Go","Rust","Java"], def: "TypeScript" },
+      AUTHOR_LEVEL: { full: false, chips: ["Junior","Mid-level","Senior","Unknown"], def: "Mid-level" },
+      FOCUS_AREAS:  { full: false, chips: ["correctness and bugs","performance and efficiency","security vulnerabilities","readability and maintainability"], def: "correctness and bugs" },
+      TONE:         { full: false, chips: ["Direct and technical","Mentoring and educational","Concise bullet points"], def: "Direct and technical" }
+    }
+  },
+
+  "Bug Report Explainer": {
+    cat: "Code & Dev",
+    desc: "Turn a raw bug or error into a clear, well-structured bug report ready for your team or issue tracker.",
+    prompt: `You are a technical writer and QA engineer. Turn the following raw bug information into a clean, professional bug report.
+
+Bug summary: [BUG_SUMMARY]
+Environment: [ENVIRONMENT]
+Severity: [SEVERITY]
+
+Write a complete bug report with these sections:
+- **Title**: a concise, searchable one-liner
+- **Description**: what is happening vs. what should happen
+- **Steps to reproduce**: numbered, precise steps
+- **Expected behavior**: what the correct behavior should be
+- **Actual behavior**: what actually occurs
+- **Environment**: browser/OS/version details based on [ENVIRONMENT]
+- **Possible cause**: a brief technical hypothesis if inferable
+- **Suggested fix**: if obvious, include a short recommendation
+
+Format for [TRACKER]. Be specific — avoid vague language like "it doesn't work."`,
+    vars: {
+      BUG_SUMMARY:  { full: true,  chips: [], def: "Login button unresponsive after failed password attempt on mobile Safari" },
+      ENVIRONMENT:  { full: false, chips: ["Mobile Safari iOS 17","Chrome on Windows 11","Firefox on macOS","Android Chrome","Node.js backend"], def: "Mobile Safari iOS 17" },
+      SEVERITY:     { full: false, chips: ["Critical — blocks usage","High — major feature broken","Medium — workaround exists","Low — cosmetic issue"], def: "High — major feature broken" },
+      TRACKER:      { full: false, chips: ["GitHub Issues","Jira","Linear","Notion","Plain text"], def: "GitHub Issues" }
+    }
+  },
+
+  "README Generator": {
+    cat: "Code & Dev",
+    desc: "Generate a professional, complete README for any project — with the right sections, tone, and level of detail.",
+    prompt: `You are a developer advocate and technical writer. Write a professional README.md for the following project.
+
+Project name: [PROJECT_NAME]
+What it does: [DESCRIPTION]
+Tech stack: [TECH_STACK]
+Target audience: [AUDIENCE]
+
+Include these sections:
+1. Project title + one-line description + badges (placeholder badge syntax is fine)
+2. Overview — 2–3 sentences on what problem it solves
+3. Features — bulleted list of [NUM_FEATURES] key features
+4. Installation — step-by-step setup instructions
+5. Usage — a practical code example with comments
+6. Configuration — environment variables or config options if relevant
+7. Contributing — brief contribution guide
+8. License: [LICENSE]
+
+Tone: [TONE]. Use proper Markdown formatting throughout.`,
+    vars: {
+      PROJECT_NAME: { full: false, chips: [], def: "hipedit-cli" },
+      DESCRIPTION:  { full: true,  chips: [], def: "A command-line tool for browsing and copying HipEdit prompt templates" },
+      TECH_STACK:   { full: true,  chips: ["Node.js + TypeScript","Python + FastAPI","React + Vite","Go","Ruby on Rails"], def: "Node.js + TypeScript" },
+      AUDIENCE:     { full: false, chips: ["Developers","DevOps engineers","Data scientists","Open source contributors"], def: "Developers" },
+      NUM_FEATURES: { full: false, chips: ["3","5","7"], def: "5" },
+      TONE:         { full: false, chips: ["Technical and precise","Friendly and approachable","Minimal and clean"], def: "Friendly and approachable" },
+      LICENSE:      { full: false, chips: ["MIT","Apache 2.0","GPL-3.0","ISC","Proprietary"], def: "MIT" }
+    }
+  },
+
+  "PR Description Writer": {
+    cat: "Code & Dev",
+    desc: "Write a clear, informative pull request description that gives reviewers everything they need to review confidently.",
+    prompt: `You are a software engineer writing a pull request description for a code change.
+
+PR title: [PR_TITLE]
+Type of change: [CHANGE_TYPE]
+What this PR does: [SUMMARY]
+Why this change is needed: [MOTIVATION]
+
+Write a PR description with the following sections:
+## What
+A clear explanation of what was changed and how.
+
+## Why
+The motivation or business context behind this change.
+
+## How
+The technical approach taken. Mention key decisions or trade-offs.
+
+## Testing
+Describe how this was tested: [TESTING_APPROACH]
+
+## Notes for reviewer
+Highlight [REVIEW_FOCUS] — any areas that need extra attention, open questions, or known limitations.
+
+Keep it factual and concise. Avoid restating the diff. Write for a reviewer who has context on the codebase but not on this specific task.`,
+    vars: {
+      PR_TITLE:         { full: true,  chips: [], def: "feat: add template search with fuzzy matching" },
+      SUMMARY:          { full: true,  chips: [], def: "Adds a search bar to the sidebar that filters templates using fuzzy matching as the user types" },
+      CHANGE_TYPE:      { full: false, chips: ["Feature","Bug fix","Refactor","Performance improvement","Security fix","Chore"], def: "Feature" },
+      MOTIVATION:       { full: false, chips: ["Improves user experience","Fixes reported bug","Reduces technical debt","Improves performance","Security requirement"], def: "Improves user experience" },
+      TESTING_APPROACH: { full: false, chips: ["Unit tests added","Manual testing on staging","E2E tests updated","No tests needed — config only"], def: "Unit tests added" },
+      REVIEW_FOCUS:     { full: false, chips: ["the fuzzy match algorithm","error handling logic","the database query","API contract changes","accessibility"], def: "the fuzzy match algorithm" }
+    }
+  },
+
+  // ── Marketing ────────────────────────────────────────────────────
+  "Cold Email Outreach": {
+    cat: "Marketing",
+    desc: "Write a cold outreach email that gets opened, read, and replied to — without sounding like a template.",
+    prompt: `You are an expert B2B copywriter who specializes in cold outreach with high reply rates.
+
+Write a cold email from [SENDER_ROLE] at [COMPANY_NAME] to a [RECIPIENT_ROLE] at a [INDUSTRY] company.
+
+Goal of the email: [GOAL]
+Key value proposition: [VALUE_PROP]
+Tone: [TONE]
+
+The email must:
+1. Have a subject line that is specific, curiosity-driven, and under 8 words
+2. Open with a personalized observation or relevant insight — not a compliment
+3. Connect that observation to a specific problem [RECIPIENT_ROLE]s typically face
+4. Introduce the solution in one sentence without over-pitching
+5. End with a single, low-friction CTA: [CTA]
+
+Keep the body under 120 words. No buzzwords. Do not use "I hope this email finds you well."`,
+    vars: {
+      VALUE_PROP:     { full: true,  chips: [], def: "We help ops teams cut manual reporting time by 60% using AI" },
+      COMPANY_NAME:   { full: false, chips: [], def: "Acme Co." },
+      SENDER_ROLE:    { full: false, chips: ["Founder","Head of Sales","Account Executive","Partnership Manager"], def: "Founder" },
+      RECIPIENT_ROLE: { full: false, chips: ["VP of Operations","Head of Marketing","CTO","CFO","HR Director"], def: "VP of Operations" },
+      INDUSTRY:       { full: false, chips: ["SaaS","ecommerce","healthcare","fintech","logistics","agency"], def: "SaaS" },
+      GOAL:           { full: false, chips: ["Book a 20-minute demo","Start a free trial","Get a referral introduction","Download a case study"], def: "Book a 20-minute demo" },
+      TONE:           { full: false, chips: ["Direct and confident","Conversational","Data-driven","Warm and curious"], def: "Direct and confident" },
+      CTA:            { full: false, chips: ["Open to a 15-min call this week?","Worth a quick chat?","Would a short demo be useful?","Happy to send a case study first?"], def: "Open to a 15-min call this week?" }
+    }
+  },
+
+  "Ad Copy A/B Test": {
+    cat: "Marketing",
+    desc: "Generate two distinct ad copy variants to A/B test — different angles, same goal.",
+    prompt: `You are a performance marketing copywriter with expertise in paid advertising.
+
+Write two distinct ad copy variants (Variant A and Variant B) for a [AD_FORMAT] ad promoting [PRODUCT_OR_SERVICE].
+
+Target audience: [AUDIENCE]
+Core offer: [OFFER]
+Campaign goal: [GOAL]
+
+For each variant, provide:
+- **Headline** (max [HEADLINE_LENGTH] characters)
+- **Body copy** (max [BODY_LENGTH] characters)
+- **CTA button text** (2–4 words)
+- **Angle used** (one sentence explaining the psychological hook)
+
+Variant A should lead with [ANGLE_A].
+Variant B should lead with [ANGLE_B].
+
+Do not repeat the same phrases across variants. Each should feel like it came from a different creative direction.`,
+    vars: {
+      PRODUCT_OR_SERVICE: { full: true,  chips: [], def: "HipEdit — AI prompt template editor" },
+      OFFER:              { full: true,  chips: [], def: "Free access to 100+ professional prompt templates" },
+      AD_FORMAT:          { full: false, chips: ["Facebook/Instagram","Google Search","LinkedIn","Twitter/X","Display banner"], def: "Facebook/Instagram" },
+      AUDIENCE:           { full: false, chips: ["Small business owners","Marketing professionals","Freelancers","Developers","HR teams"], def: "Marketing professionals" },
+      GOAL:               { full: false, chips: ["Drive signups","Generate leads","Increase purchases","Boost app downloads"], def: "Drive signups" },
+      ANGLE_A:            { full: false, chips: ["a pain point","social proof","a bold claim","urgency or scarcity"], def: "a pain point" },
+      ANGLE_B:            { full: false, chips: ["the outcome or benefit","curiosity","a question","the unique mechanism"], def: "the outcome or benefit" },
+      HEADLINE_LENGTH:    { full: false, chips: ["30","40","60"], labels: {"30":"Short (30 chars)","40":"Standard (40 chars)","60":"Long (60 chars)"}, def: "40" },
+      BODY_LENGTH:        { full: false, chips: ["90","125","150"], labels: {"90":"Short (90 chars)","125":"Standard (125 chars)","150":"Long (150 chars)"}, def: "125" }
+    }
+  },
+
+  "Landing Page Copy": {
+    cat: "Marketing",
+    desc: "Write conversion-focused landing page copy with a strong hero, benefits, social proof placeholders, and CTA.",
+    prompt: `You are a conversion copywriter who has written landing pages for top SaaS and ecommerce brands.
+
+Write full landing page copy for [PRODUCT_NAME], a [PRODUCT_TYPE].
+
+Target audience: [AUDIENCE]
+Primary value proposition: [VALUE_PROP]
+Tone: [TONE]
+
+Deliver copy for these sections in order:
+1. **Hero** — headline (under 10 words), subheadline (1–2 sentences), and CTA button: [PRIMARY_CTA]
+2. **Problem** — 2–3 sentences articulating the pain this product solves
+3. **Solution** — how [PRODUCT_NAME] solves it, in plain language
+4. **Key benefits** — [NUM_BENEFITS] benefit-led sections, each with a heading and 1–2 supporting sentences
+5. **Social proof** — 2 placeholder testimonial formats with ideal quote structure
+6. **FAQ** — 3 objection-handling Q&As
+7. **Final CTA** — closing section with urgency and the CTA: [SECONDARY_CTA]
+
+Write in the voice of the brand, not a copywriter narrating what the copy should say.`,
+    vars: {
+      PRODUCT_NAME:  { full: false, chips: [], def: "HipEdit" },
+      VALUE_PROP:    { full: true,  chips: [], def: "Get better results from AI tools without learning prompt engineering" },
+      PRODUCT_TYPE:  { full: false, chips: ["SaaS tool","mobile app","ecommerce product","online course","marketplace"], def: "SaaS tool" },
+      AUDIENCE:      { full: false, chips: ["Small business owners","Marketing teams","Freelancers","Non-technical users","Agencies"], def: "Non-technical users" },
+      TONE:          { full: false, chips: ["Conversational and approachable","Bold and confident","Professional and trustworthy","Witty and sharp"], def: "Conversational and approachable" },
+      NUM_BENEFITS:  { full: false, chips: ["3","4","5"], def: "4" },
+      PRIMARY_CTA:   { full: false, chips: ["Get started free","Try it now","Start for free","See it in action"], def: "Get started free" },
+      SECONDARY_CTA: { full: false, chips: ["Join for free — no credit card needed","Start your free trial","Get instant access","Try it free today"], def: "Join for free — no credit card needed" }
+    }
+  },
+
+  "Case Study Writer": {
+    cat: "Marketing",
+    desc: "Write a compelling customer case study that tells a real story of transformation with data and credibility.",
+    prompt: `You are a B2B content strategist writing a customer case study.
+
+Customer: [CUSTOMER_NAME] — a [CUSTOMER_TYPE] company
+Product used: [PRODUCT_NAME]
+Industry: [INDUSTRY]
+
+Write a [FORMAT] case study with these sections:
+1. **Headline** — outcome-led, specific, under 15 words
+2. **The challenge** — describe the problem [CUSTOMER_NAME] faced before using [PRODUCT_NAME]: [CHALLENGE]
+3. **The solution** — how they implemented and used [PRODUCT_NAME]
+4. **The results** — lead with the key metric: [KEY_RESULT], then 2–3 supporting outcomes
+5. **Quote** — one compelling customer quote (can be a placeholder in format: "[Job title] at [CUSTOMER_NAME]")
+6. **Why it worked** — one paragraph on the specific reason for success
+
+Tone: [TONE]. Write in third person. Be specific — avoid vague claims. Use active voice throughout.`,
+    vars: {
+      CUSTOMER_NAME: { full: false, chips: [], def: "Northline Agency" },
+      CHALLENGE:     { full: true,  chips: [], def: "Spent hours crafting AI prompts from scratch, with inconsistent results across the team" },
+      KEY_RESULT:    { full: true,  chips: [], def: "Reduced prompt creation time by 70% and doubled output quality scores" },
+      PRODUCT_NAME:  { full: false, chips: [], def: "HipEdit" },
+      CUSTOMER_TYPE: { full: false, chips: ["marketing agency","SaaS startup","enterprise","ecommerce brand","consultancy"], def: "marketing agency" },
+      INDUSTRY:      { full: false, chips: ["Marketing & advertising","Technology","Healthcare","Finance","Retail","Education"], def: "Marketing & advertising" },
+      FORMAT:        { full: false, chips: ["short (400 words)","standard (700 words)","detailed (1000 words)"], def: "standard (700 words)" },
+      TONE:          { full: false, chips: ["Professional and credible","Storytelling and narrative","Data-driven and analytical"], def: "Professional and credible" }
+    }
+  },
+
+  // ── HR & Recruiting ──────────────────────────────────────────────
+  "Job Description Writer": {
+    cat: "HR & Recruiting",
+    desc: "Write a clear, compelling job description that attracts the right candidates and reflects your company culture.",
+    prompt: `You are an experienced HR professional and talent acquisition specialist.
+
+Write a job description for a [SENIORITY] [JOB_TITLE] role at [COMPANY_NAME], a [COMPANY_TYPE] company.
+
+Team context: [TEAM_CONTEXT]
+Key responsibilities: [RESPONSIBILITIES]
+Must-have requirements: [REQUIREMENTS]
+Tone: [TONE]
+
+Structure the job description as:
+1. **About [COMPANY_NAME]** — 2–3 sentences on culture and mission
+2. **The role** — what this person will own and why it matters
+3. **What you'll do** — [NUM_BULLETS] bulleted responsibilities
+4. **What we're looking for** — must-haves and nice-to-haves, clearly separated
+5. **What we offer** — [BENEFITS]
+6. **How to apply** — brief closing with application instruction
+
+Avoid buzzwords like "rockstar", "ninja", "hustle culture." Use inclusive language. Be specific about what the role actually involves day-to-day.`,
+    vars: {
+      JOB_TITLE:     { full: false, chips: [], def: "Product Designer" },
+      RESPONSIBILITIES: { full: true, chips: [], def: "Own end-to-end design of core product features, run user research, collaborate with engineering" },
+      REQUIREMENTS:  { full: true,  chips: [], def: "3+ years product design experience, Figma proficiency, strong portfolio" },
+      COMPANY_NAME:  { full: false, chips: [], def: "HipEdit" },
+      COMPANY_TYPE:  { full: false, chips: ["early-stage startup","Series B startup","mid-size tech company","enterprise","agency","non-profit"], def: "early-stage startup" },
+      SENIORITY:     { full: false, chips: ["Junior","Mid-level","Senior","Staff","Lead"], def: "Senior" },
+      TEAM_CONTEXT:  { full: false, chips: ["Small team, high ownership","Fast-moving startup, wear many hats","Established team with clear processes","First hire in this function"], def: "Small team, high ownership" },
+      NUM_BULLETS:   { full: false, chips: ["4","5","6","7"], def: "5" },
+      BENEFITS:      { full: false, chips: ["Competitive salary, equity, remote-first, flexible hours","Health insurance, 401k, unlimited PTO, home office stipend","Equity, learning budget, async-first culture"], def: "Competitive salary, equity, remote-first, flexible hours" },
+      TONE:          { full: false, chips: ["Warm and human","Professional and direct","Energetic and culture-forward"], def: "Warm and human" }
+    }
+  },
+
+  "Interview Questions": {
+    cat: "HR & Recruiting",
+    desc: "Generate a structured set of interview questions tailored to the role, level, and what you're trying to assess.",
+    prompt: `You are a senior recruiter and hiring manager with expertise in structured interviewing.
+
+Generate interview questions for a [SENIORITY] [JOB_TITLE] role.
+Interview type: [INTERVIEW_TYPE]
+Key competencies to assess: [COMPETENCIES]
+Company stage: [COMPANY_STAGE]
+
+Provide [NUM_QUESTIONS] questions organized into these categories:
+1. **Role-specific technical** — assess hands-on skills and domain knowledge
+2. **Behavioral (STAR format)** — assess past performance as a predictor of future behavior
+3. **Situational** — present realistic scenarios they'd face in this role
+4. **Culture and motivation** — understand what drives them and if values align
+
+For each question, include:
+- The question itself
+- What you're looking for in a strong answer (1 sentence)
+
+Avoid yes/no questions. Avoid anything that could constitute illegal interview questions.`,
+    vars: {
+      JOB_TITLE:      { full: false, chips: [], def: "Product Designer" },
+      COMPETENCIES:   { full: true,  chips: [], def: "Systems thinking, cross-functional collaboration, handling ambiguity, user empathy" },
+      INTERVIEW_TYPE: { full: false, chips: ["First-round screening","Technical deep-dive","Behavioral/values","Final panel"], def: "Behavioral/values" },
+      SENIORITY:      { full: false, chips: ["Junior","Mid-level","Senior","Lead","Director"], def: "Senior" },
+      COMPANY_STAGE:  { full: false, chips: ["Early-stage startup","Growth stage","Enterprise","Agency"], def: "Early-stage startup" },
+      NUM_QUESTIONS:  { full: false, chips: ["6","8","10","12"], def: "8" }
+    }
+  },
+
+  "Offer Letter Draft": {
+    cat: "HR & Recruiting",
+    desc: "Draft a professional, complete offer letter that clearly sets expectations and gets candidates excited to join.",
+    prompt: `You are an HR professional drafting a formal employment offer letter.
+
+Candidate name: [CANDIDATE_NAME]
+Role: [JOB_TITLE] at [COMPANY_NAME]
+Employment type: [EMPLOYMENT_TYPE]
+Start date: [START_DATE]
+Compensation: [COMPENSATION]
+Reporting to: [REPORTS_TO]
+
+Write a professional offer letter that includes:
+1. A warm opening that expresses genuine excitement about the candidate
+2. Clear statement of the role, start date, and employment type
+3. Compensation details: [COMPENSATION]
+4. Benefits summary: [BENEFITS]
+5. Key conditions: background check, at-will employment (if applicable), confidentiality agreement
+6. Response deadline: [RESPONSE_DEADLINE]
+7. A warm, human closing from [SIGNATORY]
+
+Tone: [TONE]. Be clear and specific. Avoid legal boilerplate where plain language works. Note where legal review is recommended with [LEGAL REVIEW NEEDED] tags.`,
+    vars: {
+      CANDIDATE_NAME:    { full: false, chips: [], def: "Jordan Smith" },
+      JOB_TITLE:         { full: false, chips: [], def: "Senior Product Designer" },
+      COMPANY_NAME:      { full: false, chips: [], def: "HipEdit" },
+      COMPENSATION:      { full: true,  chips: [], def: "$130,000 base salary + 0.5% equity (4-year vest, 1-year cliff)" },
+      BENEFITS:          { full: true,  chips: [], def: "Health, dental, vision insurance; unlimited PTO; $1,500 home office stipend; $1,000 annual learning budget" },
+      EMPLOYMENT_TYPE:   { full: false, chips: ["Full-time, exempt","Full-time, non-exempt","Part-time","Contract"], def: "Full-time, exempt" },
+      START_DATE:        { full: false, chips: [], def: "June 2, 2025" },
+      REPORTS_TO:        { full: false, chips: [], def: "Head of Product" },
+      RESPONSE_DEADLINE: { full: false, chips: ["3 business days","5 business days","1 week"], def: "5 business days" },
+      SIGNATORY:         { full: false, chips: [], def: "the Founder" },
+      TONE:              { full: false, chips: ["Warm and welcoming","Formal and professional","Direct and clear"], def: "Warm and welcoming" }
+    }
+  },
+
+  // ── Strategy & Planning ──────────────────────────────────────────
+  "SWOT Analysis": {
+    cat: "Strategy & Planning",
+    desc: "Generate a rigorous SWOT analysis for a company, product, or initiative — with strategic implications for each quadrant.",
+    prompt: `You are a strategy consultant with experience advising companies from seed-stage startups to Fortune 500s.
+
+Conduct a thorough SWOT analysis for [SUBJECT].
+Industry/context: [INDUSTRY]
+Stage or size: [STAGE]
+Strategic question being explored: [STRATEGIC_QUESTION]
+
+For each quadrant, provide [NUM_POINTS] specific, non-generic points:
+
+**Strengths** — internal advantages that are real and defensible
+**Weaknesses** — internal limitations; be honest and specific
+**Opportunities** — external trends or gaps worth pursuing
+**Threats** — external forces that could undermine the position
+
+After the four quadrants, add a **Strategic implications** section with [NUM_ACTIONS] concrete recommended actions that emerge from the analysis — particularly where strengths can exploit opportunities or mitigate threats.
+
+Avoid generic observations. Every point should be specific to [SUBJECT].`,
+    vars: {
+      SUBJECT:            { full: true,  chips: [], def: "HipEdit — an AI prompt template marketplace" },
+      STRATEGIC_QUESTION: { full: true,  chips: [], def: "Should we expand into enterprise team plans or stay focused on individual users?" },
+      INDUSTRY:           { full: false, chips: ["SaaS / AI tools","ecommerce","healthcare","fintech","media & content","education"], def: "SaaS / AI tools" },
+      STAGE:              { full: false, chips: ["Pre-launch","Early-stage startup","Growth stage","Established SMB","Enterprise"], def: "Early-stage startup" },
+      NUM_POINTS:         { full: false, chips: ["3","4","5"], def: "4" },
+      NUM_ACTIONS:        { full: false, chips: ["3","4","5"], def: "3" }
+    }
+  },
+
+  "OKR Generator": {
+    cat: "Strategy & Planning",
+    desc: "Generate well-structured OKRs with ambitious objectives and measurable key results for any team or initiative.",
+    prompt: `You are a strategy and operations expert specializing in OKR frameworks used at high-growth companies.
+
+Generate OKRs for [TEAM_OR_COMPANY] for [TIME_PERIOD].
+Company or team context: [CONTEXT]
+Top priority for this period: [PRIORITY]
+OKR level: [LEVEL]
+
+Create [NUM_OBJECTIVES] Objectives, each with [NUM_KRS] Key Results.
+
+For each Objective:
+- Write it as an inspiring, qualitative statement of direction (not a metric)
+- Each Key Result must be: specific, measurable, time-bound, and set at [AMBITION_LEVEL] ambition
+- Add a one-line rationale explaining why this KR matters
+
+Format clearly with O1, KR1.1, KR1.2 numbering. After all OKRs, add a brief section on dependencies or risks to watch.`,
+    vars: {
+      TEAM_OR_COMPANY: { full: false, chips: [], def: "HipEdit" },
+      CONTEXT:         { full: true,  chips: [], def: "Early-stage SaaS, 8-person team, just launched, focused on growth and product-market fit" },
+      PRIORITY:        { full: true,  chips: [], def: "Grow active users and validate willingness to pay for premium templates" },
+      TIME_PERIOD:     { full: false, chips: ["Q3 2025","Q4 2025","H1 2026","Full year 2026"], def: "Q3 2025" },
+      LEVEL:           { full: false, chips: ["Company-wide","Product team","Marketing team","Engineering team","Founding team"], def: "Company-wide" },
+      NUM_OBJECTIVES:  { full: false, chips: ["2","3","4"], def: "3" },
+      NUM_KRS:         { full: false, chips: ["2","3","4"], def: "3" },
+      AMBITION_LEVEL:  { full: false, chips: ["stretch (60–70% achievable)","committed (90%+ achievable)","aspirational (moonshot)"], def: "stretch (60–70% achievable)" }
+    }
+  },
+
+  "Competitive Brief": {
+    cat: "Strategy & Planning",
+    desc: "Build a structured competitive brief on any rival — covering positioning, strengths, weaknesses, and how to win against them.",
+    prompt: `You are a competitive intelligence analyst. Write a strategic competitive brief on [COMPETITOR] as it relates to [OUR_PRODUCT].
+
+Our product: [OUR_PRODUCT]
+Our target customer: [AUDIENCE]
+Framing: [FRAMING]
+
+Structure the brief as follows:
+1. **Competitor overview** — what they do, who they serve, their stated positioning
+2. **Their strengths** — what they genuinely do well (be objective)
+3. **Their weaknesses** — gaps, complaints, or strategic blind spots
+4. **How they position against us** — their likely narrative and objections they raise
+5. **Where we win** — [NUM_WIN_POINTS] specific scenarios or customer types where we have a clear advantage
+6. **Where they win** — be honest about where they have the edge
+7. **Recommended response** — [NUM_ACTIONS] tactical recommendations for sales, marketing, or product based on this analysis
+
+Tone: analytical and direct. Avoid hype. Be specific — no generic competitive analysis language.`,
+    vars: {
+      COMPETITOR:     { full: false, chips: [], def: "PromptBase" },
+      OUR_PRODUCT:    { full: false, chips: [], def: "HipEdit" },
+      AUDIENCE:       { full: true,  chips: [], def: "Non-technical users who want to get better results from AI tools like ChatGPT" },
+      FRAMING:        { full: false, chips: ["Direct competitor","Adjacent competitor","Potential acquirer","Emerging threat"], def: "Direct competitor" },
+      NUM_WIN_POINTS: { full: false, chips: ["3","4","5"], def: "4" },
+      NUM_ACTIONS:    { full: false, chips: ["3","4","5"], def: "3" }
+    }
+  },
+
+  // ── Sales ────────────────────────────────────────────────────────
+  "Discovery Call Script": {
+    cat: "Sales",
+    desc: "Generate a structured discovery call script with smart questions that uncover pain, qualify the opportunity, and build rapport.",
+    prompt: `You are a senior sales strategist who trains enterprise and SaaS sales teams.
+
+Write a discovery call script for a [SENIORITY] [SELLER_ROLE] selling [PRODUCT_NAME] to a [BUYER_ROLE] at a [COMPANY_TYPE] company.
+
+Call duration: [DURATION]
+Primary goal of this call: [GOAL]
+Top pain points to explore: [PAIN_POINTS]
+
+Structure the script as:
+1. **Opening** (2 min) — rapport-building opener and agenda-setting
+2. **Situation questions** (5 min) — 3 questions to understand their current state
+3. **Problem questions** (8 min) — [NUM_PROBLEM_QS] questions that surface pain and consequences
+4. **Implication questions** — 2 questions that help them feel the cost of inaction
+5. **Need-payoff** — 2 questions that get them to articulate the value of solving it
+6. **Qualification** — BANT/MEDDIC checkpoint questions
+7. **Close** — how to end with a clear next step
+
+Include brief coaching notes in italics after each section. Do not make it sound like a script — it should feel like a natural conversation guide.`,
+    vars: {
+      PRODUCT_NAME:   { full: false, chips: [], def: "HipEdit" },
+      PAIN_POINTS:    { full: true,  chips: [], def: "Wasting time on AI prompts that don't work, inconsistent output quality across teams, no shared prompt library" },
+      SELLER_ROLE:    { full: false, chips: ["Account Executive","Founder","SDR","Sales Manager"], def: "Account Executive" },
+      BUYER_ROLE:     { full: false, chips: ["Head of Marketing","VP of Operations","CTO","Chief of Staff","Team Lead"], def: "Head of Marketing" },
+      COMPANY_TYPE:   { full: false, chips: ["early-stage startup","mid-market SaaS","enterprise","agency","SMB"], def: "mid-market SaaS" },
+      SENIORITY:      { full: false, chips: ["Junior","Mid-level","Senior"], def: "Mid-level" },
+      DURATION:       { full: false, chips: ["20 minutes","30 minutes","45 minutes"], def: "30 minutes" },
+      GOAL:           { full: false, chips: ["Qualify the opportunity","Book a demo","Close on the spot","Understand use case"], def: "Qualify the opportunity" },
+      NUM_PROBLEM_QS: { full: false, chips: ["3","4","5"], def: "4" }
+    }
+  },
+
+  "Follow-up Email": {
+    cat: "Sales",
+    desc: "Write a timely, relevant follow-up email after a sales interaction that moves the deal forward without being pushy.",
+    prompt: `You are a sales copywriter who specializes in follow-up sequences that re-engage prospects without annoying them.
+
+Write a follow-up email from [SENDER_ROLE] to [RECIPIENT_ROLE] after [INTERACTION_TYPE].
+
+Context of the previous interaction: [CONTEXT]
+Key insight or value to reference: [VALUE_HOOK]
+Next step being requested: [NEXT_STEP]
+Tone: [TONE]
+Days since last interaction: [DAYS_SINCE]
+
+The email must:
+1. Open with a specific reference to the last conversation — not "just following up"
+2. Add one piece of new value (insight, resource, or relevant observation) related to [VALUE_HOOK]
+3. Address the most likely objection or hesitation briefly
+4. Close with a single, easy-to-act-on request: [NEXT_STEP]
+
+Subject line: make it specific to the conversation, not generic.
+Keep the body under 120 words.`,
+    vars: {
+      CONTEXT:        { full: true,  chips: [], def: "Had a 30-min demo last Tuesday — they liked the template library but weren't sure about team pricing" },
+      VALUE_HOOK:     { full: true,  chips: [], def: "New case study showing a 3-person marketing team saving 5 hours/week using shared templates" },
+      SENDER_ROLE:    { full: false, chips: ["Account Executive","Founder","SDR","Customer Success"], def: "Account Executive" },
+      RECIPIENT_ROLE: { full: false, chips: ["VP of Marketing","Head of Operations","CTO","Team Lead","Founder"], def: "VP of Marketing" },
+      INTERACTION_TYPE: { full: false, chips: ["a product demo","an intro call","a conference meeting","a proposal review","a free trial"], def: "a product demo" },
+      NEXT_STEP:      { full: false, chips: ["Schedule a second call","Start a free trial","Share with the team","Sign the contract","Provide a decision timeline"], def: "Schedule a second call" },
+      TONE:           { full: false, chips: ["Warm and conversational","Direct and confident","Low-pressure and helpful"], def: "Warm and conversational" },
+      DAYS_SINCE:     { full: false, chips: ["2","3","5","7","14"], def: "3" }
+    }
+  },
+
+  "Objection Handler": {
+    cat: "Sales",
+    desc: "Generate sharp, empathetic responses to common sales objections — so your team is never caught off guard.",
+    prompt: `You are a sales trainer and coach with 15 years of experience helping teams handle objections without being pushy or defensive.
+
+Generate responses to the following sales objection: "[OBJECTION]"
+
+Product being sold: [PRODUCT_NAME]
+Prospect type: [PROSPECT_TYPE]
+Stage of the sales cycle: [SALES_STAGE]
+
+For this objection, provide:
+1. **What's really being said** — the underlying concern beneath the stated objection
+2. **The wrong way to handle it** — common mistake reps make (1–2 sentences)
+3. **Response A — Acknowledge and reframe** — a response that validates the concern and shifts perspective
+4. **Response B — Question-based** — a response that uses a question to explore the real barrier
+5. **Response C — Social proof** — a response using a relevant customer example
+6. **When to walk away** — signs this objection signals a genuine no-fit
+
+Responses should be [TONE]. Write them as natural spoken language, not corporate scripts.`,
+    vars: {
+      OBJECTION:    { full: true,  chips: ["We don't have budget right now","We're already using ChatGPT directly","We need to think about it","Let's revisit next quarter","I need to get buy-in from my team"], def: "We don't have budget right now" },
+      PRODUCT_NAME: { full: false, chips: [], def: "HipEdit" },
+      PROSPECT_TYPE:{ full: false, chips: ["Solo marketer","Marketing team lead","Operations manager","Small business owner","Enterprise buyer"], def: "Marketing team lead" },
+      SALES_STAGE:  { full: false, chips: ["First discovery call","Post-demo","Proposal sent","Contract stage","Re-engagement"], def: "Post-demo" },
+      TONE:         { full: false, chips: ["Confident and direct","Empathetic and curious","Low-pressure and consultative"], def: "Empathetic and curious" }
+    }
+  },
+
+  // ── Legal & Ops ──────────────────────────────────────────────────
+  "NDA Summary": {
+    cat: "Legal & Ops",
+    desc: "Summarize an NDA or legal agreement in plain English — covering key obligations, restrictions, and red flags.",
+    prompt: `You are a paralegal and legal writer who specializes in translating complex legal documents into plain language that non-lawyers can understand and act on.
+
+Summarize the key provisions of a [NDA_TYPE] NDA between [PARTY_A] and [PARTY_B] for the purpose of [PURPOSE].
+
+Provide the summary in these sections:
+1. **What this NDA covers** — the scope of confidential information in plain terms
+2. **Obligations** — what each party must and must not do
+3. **Duration** — how long the obligations last: [DURATION]
+4. **Exclusions** — what is NOT considered confidential
+5. **Key restrictions** — any non-compete, non-solicit, or use limitations: [RESTRICTIONS]
+6. **Consequences of breach** — what happens if someone violates it
+7. **Red flags to review** — [NUM_FLAGS] clauses that are unusual, one-sided, or worth negotiating
+8. **Plain-English verdict** — one paragraph summary of whether this is standard or requires legal review
+
+Note: This summary is for informational purposes only and does not constitute legal advice. Always have agreements reviewed by a qualified attorney before signing.`,
+    vars: {
+      PARTY_A:      { full: false, chips: [], def: "HipEdit Inc." },
+      PARTY_B:      { full: false, chips: [], def: "Acme Ventures LLC" },
+      PURPOSE:      { full: true,  chips: [], def: "Exploring a potential partnership and API integration" },
+      RESTRICTIONS: { full: true,  chips: [], def: "No reverse engineering, no competing product development using shared information" },
+      NDA_TYPE:     { full: false, chips: ["Mutual (both parties)","One-way (disclosing party)","Employee","Vendor","Investor"], def: "Mutual (both parties)" },
+      DURATION:     { full: false, chips: ["1 year","2 years","3 years","5 years","Indefinite"], def: "2 years" },
+      NUM_FLAGS:    { full: false, chips: ["2","3","4","5"], def: "3" }
+    }
+  },
+
+  "Meeting Minutes": {
+    cat: "Legal & Ops",
+    desc: "Turn raw meeting notes into clean, professional minutes with action items, owners, and deadlines clearly captured.",
+    prompt: `You are an executive assistant and operations specialist who writes meeting minutes that people actually read and act on.
+
+Write professional meeting minutes for a [MEETING_TYPE] meeting.
+
+Meeting details:
+- Date: [DATE]
+- Attendees: [ATTENDEES]
+- Facilitator: [FACILITATOR]
+- Raw notes or key points discussed: [RAW_NOTES]
+
+Structure the minutes as:
+1. **Meeting header** — type, date, attendees, facilitator
+2. **Objectives** — what the meeting was called to accomplish
+3. **Discussion summary** — organized by topic, not chronologically; [DETAIL_LEVEL]
+4. **Decisions made** — clearly numbered list of all decisions reached
+5. **Action items** — table format with: Action | Owner | Due Date
+6. **Next steps** — what happens before the next meeting
+7. **Next meeting** — date/time if scheduled: [NEXT_MEETING]
+
+Tone: [TONE]. Eliminate filler. Every sentence should carry information.`,
+    vars: {
+      RAW_NOTES:    { full: true,  chips: [], def: "Discussed Q3 roadmap priorities — team aligned on shipping search feature first. Marketing needs copy by June 10. John to scope API work by EOW. Budget conversation deferred to next week." },
+      ATTENDEES:    { full: true,  chips: [], def: "Sarah (CEO), John (Engineering), Maya (Marketing), Priya (Design)" },
+      MEETING_TYPE: { full: false, chips: ["Weekly team standup","Quarterly planning","Project kickoff","Board meeting","Client meeting","1:1"], def: "Quarterly planning" },
+      DATE:         { full: false, chips: [], def: "May 15, 2025" },
+      FACILITATOR:  { full: false, chips: [], def: "Sarah" },
+      DETAIL_LEVEL: { full: false, chips: ["brief bullet points","concise paragraph per topic","detailed with supporting context"], def: "concise paragraph per topic" },
+      NEXT_MEETING: { full: false, chips: [], def: "May 22, 2025 at 10am" },
+      TONE:         { full: false, chips: ["Formal and structured","Clear and professional","Concise and action-focused"], def: "Clear and professional" }
+    }
+  },
+
+  "Policy Explainer": {
+    cat: "Legal & Ops",
+    desc: "Rewrite a dense internal policy or legal document in plain language your team will actually understand and follow.",
+    prompt: `You are an internal communications specialist and plain-language writer who helps organizations make their policies clear and actionable.
+
+Rewrite or explain the following type of policy: [POLICY_TYPE]
+Audience: [AUDIENCE]
+Tone: [TONE]
+Key policy topic: [POLICY_TOPIC]
+
+Deliver the explainer in these sections:
+1. **What this policy is** — one sentence
+2. **Why it exists** — the intent and who it protects
+3. **Who it applies to** — scope of coverage
+4. **What you must do** — [NUM_RULES] clear, numbered rules in plain language
+5. **What you must NOT do** — specific prohibited actions
+6. **What happens if you don't comply** — consequences, escalation process
+7. **How to get help** — who to contact with questions: [CONTACT]
+8. **Quick reference summary** — a 3-bullet TL;DR for people who will not read the full document
+
+Do not use legal jargon without immediately defining it. Write at a [READING_LEVEL] reading level. Use active voice throughout.`,
+    vars: {
+      POLICY_TOPIC:   { full: true,  chips: [], def: "Employees may not share customer data outside approved tools or with unauthorized third parties" },
+      POLICY_TYPE:    { full: false, chips: ["Data privacy & security","Acceptable use (IT)","Remote work","Expense reimbursement","Code of conduct","PTO & leave"], def: "Data privacy & security" },
+      AUDIENCE:       { full: false, chips: ["All employees","Engineering team","Customer support team","Management","New hires"], def: "All employees" },
+      TONE:           { full: false, chips: ["Clear and direct","Friendly and approachable","Formal and authoritative"], def: "Clear and direct" },
+      NUM_RULES:      { full: false, chips: ["3","4","5","6"], def: "5" },
+      CONTACT:        { full: false, chips: [], def: "legal@company.com or your direct manager" },
+      READING_LEVEL:  { full: false, chips: ["6th grade (very simple)","8th grade (plain language)","10th grade (professional)"], def: "8th grade (plain language)" }
+    }
+  }
+
+};
+
+const SIDEBAR_DATA = [
+  { cat: "Content Writing",     items: ["Blog Post Generator","Product Description","Social Media Caption"] },
+  { cat: "Customer Support",    items: ["Reply to Complaint","Refund Response","Onboarding Email"] },
+  { cat: "Code & Dev",          items: ["Code Review","Bug Report Explainer","README Generator","PR Description Writer"] },
+  { cat: "Marketing",           items: ["Cold Email Outreach","Ad Copy A/B Test","Landing Page Copy","Case Study Writer"] },
+  { cat: "HR & Recruiting",     items: ["Job Description Writer","Interview Questions","Offer Letter Draft"] },
+  { cat: "Strategy & Planning", items: ["SWOT Analysis","OKR Generator","Competitive Brief"] },
+  { cat: "Sales",               items: ["Discovery Call Script","Follow-up Email","Objection Handler"] },
+  { cat: "Legal & Ops",         items: ["NDA Summary","Meeting Minutes","Policy Explainer"] }
+];
+
+let activeTemplate = "Blog Post Generator";
+let values = {};
+
+function loadTemplate(name) {
+  const tpl = TEMPLATES[name];
+  if (!tpl) return;
+  activeTemplate = name;
+  values = {};
+  Object.keys(tpl.vars).forEach(k => values[k] = tpl.vars[k].def);
+  document.getElementById('tpl-title').textContent = name;
+  document.getElementById('tpl-cat').textContent = tpl.cat;
+  document.getElementById('tpl-desc').textContent = tpl.desc;
+  document.getElementById('prompt-editor').value = tpl.prompt;
+  renderVars();
+  updateSidebarActive(name);
+}
+
+function updateSidebarActive(name) {
+  document.querySelectorAll('.sidebar-item').forEach(el => {
+    const isActive = el.dataset.name === name;
+    el.className = 'sidebar-item flex items-center gap-2 px-4 py-1.5 text-xs cursor-pointer border-l-2 ' +
+      (isActive ? 'border-amber-700 bg-amber-50 text-stone-800 font-medium' : 'border-transparent text-stone-500 hover:text-stone-700 hover:bg-stone-50');
+    el.querySelector('span').className = `w-1 h-1 rounded-full flex-shrink-0 ${isActive ? 'bg-amber-700' : 'bg-stone-300'}`;
+  });
+}
+
+function renderVars() {
+  const tpl = TEMPLATES[activeTemplate];
+  const promptText = document.getElementById('prompt-editor').value;
+  const grid = document.getElementById('vars-grid');
+  grid.innerHTML = '';
+  if (!tpl) return;
+  const activeKeys = Object.keys(tpl.vars)
+    .filter(k => promptText.includes(`[${k}]`))
+    .sort((a, b) => {
+      const aFull = tpl.vars[a].full, bFull = tpl.vars[b].full;
+      if (aFull && !bFull) return -1;
+      if (!aFull && bFull) return 1;
+      return promptText.indexOf(`[${a}]`) - promptText.indexOf(`[${b}]`);
+    });
+  activeKeys.forEach(key => {
+    const cfg = tpl.vars[key];
+    const field = document.createElement('div');
+    field.className = 'bg-white border border-stone-200 rounded-lg p-3 ' + (cfg.full ? 'col-span-2' : '');
+    const lbl = document.createElement('div');
+    lbl.className = 'text-xs font-mono text-amber-700 mb-2';
+    lbl.textContent = `[${key}]`;
+    field.appendChild(lbl);
+    if (cfg.chips && cfg.chips.length > 0) {
+      const chipsDiv = document.createElement('div');
+      chipsDiv.className = 'flex flex-wrap gap-1.5 mb-2';
+      cfg.chips.forEach(val => {
+        const chip = document.createElement('button');
+        chip.className = 'chip-btn text-xs px-2 py-1 rounded border border-stone-200 text-stone-500 bg-stone-50 ' + (values[key] === val ? 'selected' : '');
+        chip.textContent = (cfg.labels && cfg.labels[val]) ? cfg.labels[val] : val;
+        chip.addEventListener('click', () => {
+          values[key] = val;
+          field.querySelector('.var-inp').value = val;
+          chipsDiv.querySelectorAll('.chip-btn').forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+        });
+        chipsDiv.appendChild(chip);
+      });
+      field.appendChild(chipsDiv);
+    }
+    const input = document.createElement('input');
+    input.className = 'var-inp var-input w-full border border-stone-200 rounded px-2 py-1 text-xs text-stone-700 bg-stone-50';
+    input.style.fontFamily = "'DM Sans', sans-serif";
+    input.value = values[key] !== undefined ? values[key] : cfg.def;
+    input.addEventListener('input', () => {
+      values[key] = input.value;
+      if (cfg.chips && cfg.chips.length > 0) {
+        field.querySelectorAll('.chip-btn').forEach(c => {
+          c.classList.toggle('selected', cfg.chips.some(v => v === values[key] && c.textContent === ((cfg.labels && cfg.labels[v]) ? cfg.labels[v] : v)));
+        });
+      }
+    });
+    field.appendChild(input);
+    grid.appendChild(field);
+  });
+}
+
+// Build sidebar
+const sidebarEl = document.getElementById('sidebar-content');
+SIDEBAR_DATA.forEach(sec => {
+  const section = document.createElement('div');
+  section.className = 'mb-4';
+  const cat = document.createElement('div');
+  cat.className = 'text-xs font-semibold tracking-widest uppercase text-stone-400 px-4 mb-1';
+  cat.textContent = sec.cat;
+  section.appendChild(cat);
+  sec.items.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'sidebar-item flex items-center gap-2 px-4 py-1.5 text-xs cursor-pointer border-l-2 border-transparent text-stone-500 hover:text-stone-700 hover:bg-stone-50';
+    el.dataset.name = item;
+    el.innerHTML = `<span class="w-1 h-1 rounded-full flex-shrink-0 bg-stone-300"></span>${item}`;
+    if (TEMPLATES[item]) {
+      el.addEventListener('click', () => loadTemplate(item));
+    }
+    section.appendChild(el);
+  });
+  sidebarEl.appendChild(section);
+});
+
+// Modal
+const modal = document.getElementById('modal');
+document.getElementById('btn-open-modal').addEventListener('click', () => { modal.style.display = 'flex'; });
+document.getElementById('btn-close-modal').addEventListener('click', () => { modal.style.display = 'none'; });
+modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+
+// Drag resize
+const promptSection = document.getElementById('prompt-section');
+const dragHandle = document.getElementById('drag-handle');
+let dragging = false, startY = 0, startH = 0;
+dragHandle.addEventListener('mousedown', e => {
+  dragging = true; startY = e.clientY; startH = promptSection.offsetHeight;
+  document.body.style.cursor = 'ns-resize';
+  document.body.style.userSelect = 'none';
+});
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const newH = Math.min(window.innerHeight * 0.6, Math.max(80, startH + (e.clientY - startY)));
+  promptSection.style.height = newH + 'px';
+});
+document.addEventListener('mouseup', () => {
+  dragging = false;
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+});
+
+document.getElementById('prompt-editor').addEventListener('input', renderVars);
+
+document.getElementById('btn-copy').addEventListener('click', () => {
+  let text = document.getElementById('prompt-editor').value;
+  Object.keys(values).forEach(k => { text = text.replaceAll(`[${k}]`, values[k]); });
+  navigator.clipboard.writeText(text).catch(() => {});
+  const btn = document.getElementById('btn-copy');
+  btn.innerHTML = '&#10003; Copied!';
+  btn.style.background = '#4a9e6b';
+  setTimeout(() => {
+    btn.innerHTML = '&#x2398; Copy Prompt to Clipboard';
+    btn.style.background = '';
+  }, 2000);
+});
+
+// Share button
+const shareBtn = document.getElementById('btn-share');
+const shareDropdown = document.getElementById('share-dropdown');
+
+shareBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isOpen = shareDropdown.style.display === 'block';
+  shareDropdown.style.display = isOpen ? 'none' : 'block';
+});
+
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('share-container').contains(e.target)) {
+    shareDropdown.style.display = 'none';
+  }
+});
+
+const SHARE_URL = 'https://hipedit.com';
+const SHARE_TEXT = 'Discover and use great AI prompt templates with HipEdit — no prompt engineering needed.';
+
+document.getElementById('share-x').href =
+  `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(SHARE_URL)}`;
+document.getElementById('share-linkedin').href =
+  `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(SHARE_URL)}`;
+document.getElementById('share-facebook').href =
+  `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SHARE_URL)}`;
+document.getElementById('share-reddit').href =
+  `https://reddit.com/submit?url=${encodeURIComponent(SHARE_URL)}&title=${encodeURIComponent(SHARE_TEXT)}`;
+
+document.getElementById('share-x').target = '_blank';
+document.getElementById('share-linkedin').target = '_blank';
+document.getElementById('share-facebook').target = '_blank';
+document.getElementById('share-reddit').target = '_blank';
+
+document.getElementById('share-copy').addEventListener('click', (e) => {
+  e.preventDefault();
+  navigator.clipboard.writeText(SHARE_URL).catch(() => {});
+  const el = document.getElementById('share-copy');
+  el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a9e6b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span style="color:#4a9e6b">Link copied!</span>`;
+  setTimeout(() => {
+    el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy link`;
+    shareDropdown.style.display = 'none';
+  }, 1500);
+});
+
+// Request a Template form → Formspree
+document.getElementById('btn-submit-request').addEventListener('click', async () => {
+  const name     = document.getElementById('req-name').value.trim();
+  const category = document.getElementById('req-category').value.trim();
+  const desc     = document.getElementById('req-description').value.trim();
+  const feedback = document.getElementById('form-feedback');
+  const btn      = document.getElementById('btn-submit-request');
+
+  if (!name || !desc) {
+    feedback.textContent = 'Please fill in at least the template name and description.';
+    feedback.style.color = '#b45309';
+    feedback.style.display = 'block';
+    return;
+  }
+
+  btn.textContent = 'Sending...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('https://formspree.io/f/xbdwnabk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ 'Template Name': name, 'Category': category, 'Description': desc })
+    });
+
+    if (res.ok) {
+      btn.style.display = 'none';
+      feedback.textContent = '✓ Request submitted! We\'ll review it and build it soon.';
+      feedback.style.color = '#4a9e6b';
+      feedback.style.display = 'block';
+      document.getElementById('req-name').value = '';
+      document.getElementById('req-category').value = '';
+      document.getElementById('req-description').value = '';
+      setTimeout(() => {
+        modal.style.display = 'none';
+        btn.style.display = 'block';
+        btn.textContent = 'Submit Request';
+        btn.disabled = false;
+        feedback.style.display = 'none';
+      }, 2500);
+    } else {
+      throw new Error('Server error');
+    }
+  } catch {
+    feedback.textContent = 'Something went wrong. Please try again.';
+    feedback.style.color = '#b45309';
+    feedback.style.display = 'block';
+    btn.textContent = 'Submit Request';
+    btn.disabled = false;
+  }
+});
+
+loadTemplate("Blog Post Generator");
+</script>
+</body>
+</html>
