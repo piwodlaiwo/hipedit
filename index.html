@@ -1098,18 +1098,24 @@ document.addEventListener('mouseup', () => {
 });
 
 document.getElementById('prompt-editor').addEventListener('input', renderVars);
-
+  
 document.getElementById('btn-copy').addEventListener('click', () => {
   let text = document.getElementById('prompt-editor').value;
-  Object.keys(values).forEach(k => { text = text.replaceAll(`[${k}]`, values[k]); });
-  navigator.clipboard.writeText(text).catch(() => {});
   const btn = document.getElementById('btn-copy');
-  btn.innerHTML = '&#10003; Copied!';
+  Object.keys(values).forEach(k => { text = text.replaceAll(`[${k}]`, values[k]); });
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).catch(() => {});
+    btn.innerHTML = '&#10003; Copied!';
+  } else {
+    const myTextarea = document.getElementById('prompt-editor');
+    myTextarea.value = text;
+    btn.innerHTML = '&#10003; Updated Text Above!';
+  }
   btn.style.background = '#4a9e6b';
   setTimeout(() => {
     btn.innerHTML = '&#x2398; Copy Prompt to Clipboard';
     btn.style.background = '';
-  }, 2000);
+  }, 2000);  
 });
 
 // Share button
