@@ -1177,21 +1177,29 @@ modal.addEventListener('click', e => { if (e.target === modal) modal.style.displ
 const promptSection = document.getElementById('prompt-section');
 const dragHandle = document.getElementById('drag-handle');
 let dragging = false, startY = 0, startH = 0;
-dragHandle.addEventListener('mousedown', e => {
-  dragging = true; startY = e.clientY; startH = promptSection.offsetHeight;
+function startDrag(clientY) {
+  dragging = true; startY = clientY; startH = promptSection.offsetHeight;
   document.body.style.cursor = 'ns-resize';
   document.body.style.userSelect = 'none';
-});
-document.addEventListener('mousemove', e => {
+}
+function moveDrag(clientY) {
   if (!dragging) return;
-  const newH = Math.min(window.innerHeight * 0.6, Math.max(80, startH + (e.clientY - startY)));
+  const newH = Math.min(window.innerHeight * 0.6, Math.max(80, startH + (clientY - startY)));
   promptSection.style.height = newH + 'px';
-});
-document.addEventListener('mouseup', () => {
+}
+function endDrag() {
   dragging = false;
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
-});
+}
+
+dragHandle.addEventListener('mousedown', e => startDrag(e.clientY));
+document.addEventListener('mousemove', e => moveDrag(e.clientY));
+document.addEventListener('mouseup', endDrag);
+
+dragHandle.addEventListener('touchstart', e => { e.preventDefault(); startDrag(e.touches[0].clientY); }, { passive: false });
+document.addEventListener('touchmove', e => { if (dragging) { e.preventDefault(); moveDrag(e.touches[0].clientY); } }, { passive: false });
+document.addEventListener('touchend', endDrag);
 
 document.getElementById('prompt-editor').addEventListener('input', renderVars);
 
