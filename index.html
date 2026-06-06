@@ -2,17 +2,27 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>AI Prompt Templates | HipEdit</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7NWBQ89020"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-7NWBQ89020');
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <style>
   html, body { margin: 0; padding: 0; height: 100%; font-family: 'DM Sans', sans-serif; }
+  #app { height: 100vh; height: 100dvh; }
   .sidebar { overflow-y: auto; }
   .sidebar::-webkit-scrollbar { width: 4px; }
   .sidebar::-webkit-scrollbar-track { background: transparent; }
   .sidebar::-webkit-scrollbar-thumb { background: #d1c9b8; border-radius: 2px; }
-  .vars-scroll { overflow-y: auto; }
+  .vars-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .vars-scroll::-webkit-scrollbar { width: 4px; }
   .vars-scroll::-webkit-scrollbar-track { background: transparent; }
   .vars-scroll::-webkit-scrollbar-thumb { background: #d1c9b8; border-radius: 2px; }
@@ -20,25 +30,72 @@
   .chip-btn:hover { background: #e8e2d9; }
   .chip-btn.selected { background: #2d2926; color: #f5f0e8; border-color: #2d2926; }
   .var-input:focus { outline: none; border-color: #9c8e7e; }
-  .prompt-area { resize: none; font-family: monospace; }
+  .prompt-area { resize: none; font-family: monospace; -webkit-overflow-scrolling: touch; }
   .prompt-area:focus { outline: none; }
   .drag-handle { cursor: ns-resize; user-select: none; }
   textarea:focus { outline: none; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(45,41,38,0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
   .modal-box { animation: slideUp 0.18s ease; }
   @keyframes slideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+  /* Mobile drawer */
+  #mobile-drawer { transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+  #drawer-backdrop { transition: opacity 0.25s ease; }
+
+  /* Prompt section height: smaller on mobile */
+  #prompt-section { height: 130px; }
+  @media (min-width: 768px) { #prompt-section { height: 172px; } }
+
+  /* iOS safe area */
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    #action-bar { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+    #mobile-drawer-footer { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  }
+
+  /* Better tap targets on mobile */
+  @media (max-width: 767px) {
+    .sidebar-item { min-height: 40px; }
+  }
 </style>
 </head>
 <body>
 
-<div id="app" class="flex flex-col bg-stone-50" style="height:100vh; font-family:'DM Sans',sans-serif; overflow:hidden;">
+<div id="app" class="flex flex-col bg-stone-50" style="font-family:'DM Sans',sans-serif; overflow:hidden;">
 
-  <nav class="flex items-center px-5 h-12 border-b border-stone-200 bg-white flex-shrink-0 gap-3">
-    <span class="font-semibold text-stone-800 text-sm tracking-tight">Hip<span class="text-amber-700">Edit</span></span>
-    <span class="w-px h-4 bg-stone-200"></span>
-    <span class="text-stone-400 text-xs font-medium tracking-wide uppercase">AI Prompt Template Editor</span>
-    <button id="btn-open-modal" class="ml-auto text-xs font-medium bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-md transition-colors">Request a Template</button>
-    <div class="relative" id="share-container">
+  <!-- Mobile drawer backdrop -->
+  <div id="drawer-backdrop" class="fixed inset-0 z-30 md:hidden" style="background:rgba(45,41,38,0.45); opacity:0; pointer-events:none;"></div>
+
+  <!-- Mobile template drawer -->
+  <div id="mobile-drawer" class="fixed inset-y-0 left-0 z-40 flex flex-col bg-white md:hidden" style="width:min(300px,88vw); transform:translateX(-100%); box-shadow: 4px 0 24px rgba(0,0,0,0.10);">
+    <div class="flex items-center justify-between px-5 h-12 border-b border-stone-200 flex-shrink-0">
+      <span class="font-semibold text-stone-800 text-sm tracking-tight">Hip<span class="text-amber-700">Edit</span> <span class="text-stone-400 font-normal">· Templates</span></span>
+      <button id="btn-close-drawer" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:none;background:transparent;cursor:pointer;color:#a8a29e;">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M1 1L13 13M13 1L1 13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div id="mobile-sidebar-content" class="flex-1 overflow-y-auto py-4" style="-webkit-overflow-scrolling:touch;"></div>
+    <div id="mobile-drawer-footer" class="border-t border-stone-100 p-4 flex-shrink-0">
+      <button id="btn-open-modal-mobile" class="w-full text-sm font-medium bg-amber-700 hover:bg-amber-800 text-white px-3 py-3 rounded-xl transition-colors">Request a Template</button>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex items-center px-4 md:px-5 h-12 border-b border-stone-200 bg-white flex-shrink-0 gap-3 relative z-20">
+    <!-- Mobile: hamburger + logo -->
+    <button id="btn-open-drawer" class="md:hidden flex items-center gap-2.5 rounded-lg" style="border:none;background:transparent;cursor:pointer;padding:8px 4px 8px 0;margin-left:-2px;">
+      <svg width="17" height="13" viewBox="0 0 17 13" fill="none" stroke="#57534e" stroke-width="1.8" stroke-linecap="round">
+        <line x1="0" y1="1" x2="17" y2="1"/><line x1="0" y1="6.5" x2="17" y2="6.5"/><line x1="0" y1="12" x2="11" y2="12"/>
+      </svg>
+      <span class="font-semibold text-stone-800 text-sm tracking-tight">Hip<span class="text-amber-700">Edit</span></span>
+    </button>
+    <!-- Desktop: logo + subtitle -->
+    <span class="hidden md:inline font-semibold text-stone-800 text-sm tracking-tight">Hip<span class="text-amber-700">Edit</span></span>
+    <span class="hidden md:block w-px h-4 bg-stone-200"></span>
+    <span class="hidden md:block text-stone-400 text-xs font-medium tracking-wide uppercase">AI Prompt Template Editor</span>
+    <!-- Desktop: Request Template -->
+    <button id="btn-open-modal" class="hidden md:block ml-auto text-xs font-medium bg-amber-700 hover:bg-amber-800 text-white px-3 py-1.5 rounded-md transition-colors">Request a Template</button>
+    <!-- Share -->
+    <div class="relative ml-auto md:ml-0" id="share-container">
       <button id="btn-share" class="flex items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-stone-800 border border-stone-200 hover:border-stone-300 bg-white px-3 py-1.5 rounded-md transition-colors">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         Share
@@ -73,30 +130,37 @@
 
   <div class="flex flex-1 min-h-0">
 
-    <aside class="sidebar w-48 flex-shrink-0 border-r border-stone-200 bg-white py-4">
+    <!-- Desktop sidebar -->
+    <aside class="sidebar hidden md:block w-48 flex-shrink-0 border-r border-stone-200 bg-white py-4">
       <div id="sidebar-content"></div>
     </aside>
 
     <div class="flex flex-col flex-1 min-w-0 min-h-0">
 
-      <div class="px-6 pt-5 pb-4 border-b border-stone-200 bg-white flex-shrink-0">
+      <!-- Hero: desktop only -->
+      <div class="hidden md:block px-6 pt-5 pb-4 border-b border-stone-200 bg-white flex-shrink-0">
         <p style="font-family:'Instrument Serif',serif;" class="text-2xl text-stone-800 leading-snug">Discover, use, and share great prompts<br><span class="italic text-stone-400">so that you can get meaningful outcomes from your AI tools.</span></p>
       </div>
 
-      <div class="px-6 py-3 border-b border-stone-100 bg-stone-50 flex-shrink-0">
+      <!-- Template header — tappable on mobile to open drawer -->
+      <div id="tpl-header" class="px-4 md:px-6 py-3 border-b border-stone-100 bg-stone-50 flex-shrink-0">
         <div class="flex items-center gap-2 mb-0.5">
-          <span id="tpl-title" class="text-sm font-semibold text-stone-800"></span>
-          <span id="tpl-cat" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded"></span>
+          <span id="tpl-title" class="text-sm font-semibold text-stone-800 truncate"></span>
+          <span id="tpl-cat" class="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded flex-shrink-0"></span>
+          <!-- Chevron hint on mobile -->
+          <svg id="tpl-chevron" class="md:hidden ml-auto flex-shrink-0 text-stone-300" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
-        <p id="tpl-desc" class="text-xs text-stone-400 leading-snug"></p>
+        <p id="tpl-desc" class="text-xs text-stone-400 leading-snug" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;"></p>
       </div>
 
-      <div id="prompt-section" class="flex-shrink-0 bg-white border-b border-stone-200 flex flex-col" style="height:172px; min-height:80px; max-height:60vh;">
-        <div class="px-6 pt-4 pb-2 flex-shrink-0">
+      <!-- Prompt section -->
+      <div id="prompt-section" class="flex-shrink-0 bg-white border-b border-stone-200 flex flex-col" style="min-height:80px; max-height:60vh;">
+        <div class="px-4 md:px-6 pt-3 md:pt-4 pb-2 flex-shrink-0">
           <label class="text-xs font-semibold tracking-widest uppercase text-stone-400 block mb-2">Prompt</label>
         </div>
-        <textarea id="prompt-editor" class="prompt-area flex-1 mx-6 bg-stone-50 border border-stone-200 rounded-lg p-3 text-xs leading-relaxed text-stone-700 mb-2" spellcheck="false"></textarea>
-        <div class="drag-handle flex-shrink-0 flex items-center justify-center h-5 border-t border-stone-100 bg-stone-50 group" id="drag-handle">
+        <textarea id="prompt-editor" class="prompt-area flex-1 mx-4 md:mx-6 bg-stone-50 border border-stone-200 rounded-lg p-3 text-xs leading-relaxed text-stone-700 mb-2" spellcheck="false"></textarea>
+        <!-- Drag handle -->
+        <div class="drag-handle flex flex-shrink-0 items-center justify-center h-5 border-t border-stone-100 bg-stone-50 group" id="drag-handle">
           <div class="flex gap-1">
             <div class="w-4 h-0.5 rounded-full bg-stone-300 group-hover:bg-stone-400 transition-colors"></div>
             <div class="w-4 h-0.5 rounded-full bg-stone-300 group-hover:bg-stone-400 transition-colors"></div>
@@ -105,19 +169,22 @@
         </div>
       </div>
 
-      <div class="vars-scroll flex-1 px-6 py-4 bg-stone-50 min-h-0">
+      <!-- Variables -->
+      <div class="vars-scroll flex-1 px-4 md:px-6 py-4 bg-stone-50 min-h-0">
         <p class="text-xs font-semibold tracking-widest uppercase text-stone-400 mb-3">Variables</p>
         <div id="vars-grid" class="grid grid-cols-2 gap-3"></div>
       </div>
 
-      <div class="flex gap-3 px-6 py-3 border-t border-stone-200 bg-white flex-shrink-0">
-        <button id="btn-copy" class="flex-1 flex items-center justify-center gap-2 bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium rounded-lg py-2.5 transition-colors">
+      <!-- Action bar -->
+      <div id="action-bar" class="flex gap-3 px-4 md:px-6 py-3 border-t border-stone-200 bg-white flex-shrink-0">
+        <button id="btn-copy" class="flex-1 flex items-center justify-center gap-2 bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium rounded-lg py-3 md:py-2.5 transition-colors">
           &#x2398; Copy Prompt to Clipboard
         </button>
-        <button class="flex-1 flex items-center justify-center gap-2 bg-stone-100 text-stone-400 text-sm font-medium rounded-lg py-2.5 cursor-default border border-stone-200">
+        <button class="hidden md:flex flex-1 items-center justify-center gap-2 bg-stone-100 text-stone-400 text-sm font-medium rounded-lg py-2.5 cursor-default border border-stone-200">
           &#9654; Run with Variables <span class="text-xs text-stone-300 ml-1">coming soon</span>
         </button>
       </div>
+
     </div>
   </div>
 </div>
@@ -589,16 +656,16 @@ Structure the job description as:
 
 Avoid buzzwords like "rockstar", "ninja", "hustle culture." Use inclusive language. Be specific about what the role actually involves day-to-day.`,
     vars: {
-      JOB_TITLE:     { full: false, chips: [], def: "Product Designer" },
-      RESPONSIBILITIES: { full: true, chips: [], def: "Own end-to-end design of core product features, run user research, collaborate with engineering" },
-      REQUIREMENTS:  { full: true,  chips: [], def: "3+ years product design experience, Figma proficiency, strong portfolio" },
-      COMPANY_NAME:  { full: false, chips: [], def: "HipEdit" },
-      COMPANY_TYPE:  { full: false, chips: ["early-stage startup","Series B startup","mid-size tech company","enterprise","agency","non-profit"], def: "early-stage startup" },
-      SENIORITY:     { full: false, chips: ["Junior","Mid-level","Senior","Staff","Lead"], def: "Senior" },
-      TEAM_CONTEXT:  { full: false, chips: ["Small team, high ownership","Fast-moving startup, wear many hats","Established team with clear processes","First hire in this function"], def: "Small team, high ownership" },
-      NUM_BULLETS:   { full: false, chips: ["4","5","6","7"], def: "5" },
-      BENEFITS:      { full: false, chips: ["Competitive salary, equity, remote-first, flexible hours","Health insurance, 401k, unlimited PTO, home office stipend","Equity, learning budget, async-first culture"], def: "Competitive salary, equity, remote-first, flexible hours" },
-      TONE:          { full: false, chips: ["Warm and human","Professional and direct","Energetic and culture-forward"], def: "Warm and human" }
+      JOB_TITLE:        { full: false, chips: [], def: "Product Designer" },
+      RESPONSIBILITIES: { full: true,  chips: [], def: "Own end-to-end design of core product features, run user research, collaborate with engineering" },
+      REQUIREMENTS:     { full: true,  chips: [], def: "3+ years product design experience, Figma proficiency, strong portfolio" },
+      COMPANY_NAME:     { full: false, chips: [], def: "HipEdit" },
+      COMPANY_TYPE:     { full: false, chips: ["early-stage startup","Series B startup","mid-size tech company","enterprise","agency","non-profit"], def: "early-stage startup" },
+      SENIORITY:        { full: false, chips: ["Junior","Mid-level","Senior","Staff","Lead"], def: "Senior" },
+      TEAM_CONTEXT:     { full: false, chips: ["Small team, high ownership","Fast-moving startup, wear many hats","Established team with clear processes","First hire in this function"], def: "Small team, high ownership" },
+      NUM_BULLETS:      { full: false, chips: ["4","5","6","7"], def: "5" },
+      BENEFITS:         { full: false, chips: ["Competitive salary, equity, remote-first, flexible hours","Health insurance, 401k, unlimited PTO, home office stipend","Equity, learning budget, async-first culture"], def: "Competitive salary, equity, remote-first, flexible hours" },
+      TONE:             { full: false, chips: ["Warm and human","Professional and direct","Energetic and culture-forward"], def: "Warm and human" }
     }
   },
 
@@ -817,14 +884,14 @@ The email must:
 Subject line: make it specific to the conversation, not generic.
 Keep the body under 120 words.`,
     vars: {
-      CONTEXT:        { full: true,  chips: [], def: "Had a 30-min demo last Tuesday — they liked the template library but weren't sure about team pricing" },
-      VALUE_HOOK:     { full: true,  chips: [], def: "New case study showing a 3-person marketing team saving 5 hours/week using shared templates" },
-      SENDER_ROLE:    { full: false, chips: ["Account Executive","Founder","SDR","Customer Success"], def: "Account Executive" },
-      RECIPIENT_ROLE: { full: false, chips: ["VP of Marketing","Head of Operations","CTO","Team Lead","Founder"], def: "VP of Marketing" },
+      CONTEXT:          { full: true,  chips: [], def: "Had a 30-min demo last Tuesday — they liked the template library but weren't sure about team pricing" },
+      VALUE_HOOK:       { full: true,  chips: [], def: "New case study showing a 3-person marketing team saving 5 hours/week using shared templates" },
+      SENDER_ROLE:      { full: false, chips: ["Account Executive","Founder","SDR","Customer Success"], def: "Account Executive" },
+      RECIPIENT_ROLE:   { full: false, chips: ["VP of Marketing","Head of Operations","CTO","Team Lead","Founder"], def: "VP of Marketing" },
       INTERACTION_TYPE: { full: false, chips: ["a product demo","an intro call","a conference meeting","a proposal review","a free trial"], def: "a product demo" },
-      NEXT_STEP:      { full: false, chips: ["Schedule a second call","Start a free trial","Share with the team","Sign the contract","Provide a decision timeline"], def: "Schedule a second call" },
-      TONE:           { full: false, chips: ["Warm and conversational","Direct and confident","Low-pressure and helpful"], def: "Warm and conversational" },
-      DAYS_SINCE:     { full: false, chips: ["2","3","5","7","14"], def: "3" }
+      NEXT_STEP:        { full: false, chips: ["Schedule a second call","Start a free trial","Share with the team","Sign the contract","Provide a decision timeline"], def: "Schedule a second call" },
+      TONE:             { full: false, chips: ["Warm and conversational","Direct and confident","Low-pressure and helpful"], def: "Warm and conversational" },
+      DAYS_SINCE:       { full: false, chips: ["2","3","5","7","14"], def: "3" }
     }
   },
 
@@ -849,11 +916,11 @@ For this objection, provide:
 
 Responses should be [TONE]. Write them as natural spoken language, not corporate scripts.`,
     vars: {
-      OBJECTION:    { full: true,  chips: ["We don't have budget right now","We're already using ChatGPT directly","We need to think about it","Let's revisit next quarter","I need to get buy-in from my team"], def: "We don't have budget right now" },
-      PRODUCT_NAME: { full: false, chips: [], def: "HipEdit" },
-      PROSPECT_TYPE:{ full: false, chips: ["Solo marketer","Marketing team lead","Operations manager","Small business owner","Enterprise buyer"], def: "Marketing team lead" },
-      SALES_STAGE:  { full: false, chips: ["First discovery call","Post-demo","Proposal sent","Contract stage","Re-engagement"], def: "Post-demo" },
-      TONE:         { full: false, chips: ["Confident and direct","Empathetic and curious","Low-pressure and consultative"], def: "Empathetic and curious" }
+      OBJECTION:     { full: true,  chips: ["We don't have budget right now","We're already using ChatGPT directly","We need to think about it","Let's revisit next quarter","I need to get buy-in from my team"], def: "We don't have budget right now" },
+      PRODUCT_NAME:  { full: false, chips: [], def: "HipEdit" },
+      PROSPECT_TYPE: { full: false, chips: ["Solo marketer","Marketing team lead","Operations manager","Small business owner","Enterprise buyer"], def: "Marketing team lead" },
+      SALES_STAGE:   { full: false, chips: ["First discovery call","Post-demo","Proposal sent","Contract stage","Re-engagement"], def: "Post-demo" },
+      TONE:          { full: false, chips: ["Confident and direct","Empathetic and curious","Low-pressure and consultative"], def: "Empathetic and curious" }
     }
   },
 
@@ -944,13 +1011,13 @@ Deliver the explainer in these sections:
 
 Do not use legal jargon without immediately defining it. Write at a [READING_LEVEL] reading level. Use active voice throughout.`,
     vars: {
-      POLICY_TOPIC:   { full: true,  chips: [], def: "Employees may not share customer data outside approved tools or with unauthorized third parties" },
-      POLICY_TYPE:    { full: false, chips: ["Data privacy & security","Acceptable use (IT)","Remote work","Expense reimbursement","Code of conduct","PTO & leave"], def: "Data privacy & security" },
-      AUDIENCE:       { full: false, chips: ["All employees","Engineering team","Customer support team","Management","New hires"], def: "All employees" },
-      TONE:           { full: false, chips: ["Clear and direct","Friendly and approachable","Formal and authoritative"], def: "Clear and direct" },
-      NUM_RULES:      { full: false, chips: ["3","4","5","6"], def: "5" },
-      CONTACT:        { full: false, chips: [], def: "legal@company.com or your direct manager" },
-      READING_LEVEL:  { full: false, chips: ["6th grade (very simple)","8th grade (plain language)","10th grade (professional)"], def: "8th grade (plain language)" }
+      POLICY_TOPIC:  { full: true,  chips: [], def: "Employees may not share customer data outside approved tools or with unauthorized third parties" },
+      POLICY_TYPE:   { full: false, chips: ["Data privacy & security","Acceptable use (IT)","Remote work","Expense reimbursement","Code of conduct","PTO & leave"], def: "Data privacy & security" },
+      AUDIENCE:      { full: false, chips: ["All employees","Engineering team","Customer support team","Management","New hires"], def: "All employees" },
+      TONE:          { full: false, chips: ["Clear and direct","Friendly and approachable","Formal and authoritative"], def: "Clear and direct" },
+      NUM_RULES:     { full: false, chips: ["3","4","5","6"], def: "5" },
+      CONTACT:       { full: false, chips: [], def: "legal@company.com or your direct manager" },
+      READING_LEVEL: { full: false, chips: ["6th grade (very simple)","8th grade (plain language)","10th grade (professional)"], def: "8th grade (plain language)" }
     }
   }
 
@@ -1049,35 +1116,64 @@ function renderVars() {
   });
 }
 
-// Build sidebar
-const sidebarEl = document.getElementById('sidebar-content');
-SIDEBAR_DATA.forEach(sec => {
-  const section = document.createElement('div');
-  section.className = 'mb-4';
-  const cat = document.createElement('div');
-  cat.className = 'text-xs font-semibold tracking-widest uppercase text-stone-400 px-4 mb-1';
-  cat.textContent = sec.cat;
-  section.appendChild(cat);
-  sec.items.forEach(item => {
-    const el = document.createElement('div');
-    el.className = 'sidebar-item flex items-center gap-2 px-4 py-1.5 text-xs cursor-pointer border-l-2 border-transparent text-stone-500 hover:text-stone-700 hover:bg-stone-50';
-    el.dataset.name = item;
-    el.innerHTML = `<span class="w-1 h-1 rounded-full flex-shrink-0 bg-stone-300"></span>${item}`;
-    if (TEMPLATES[item]) {
-      el.addEventListener('click', () => loadTemplate(item));
-    }
-    section.appendChild(el);
+// ── Build sidebars ────────────────────────────────────────────────────
+function buildSidebar(containerEl, isMobile) {
+  SIDEBAR_DATA.forEach(sec => {
+    const section = document.createElement('div');
+    section.className = 'mb-4';
+    const cat = document.createElement('div');
+    cat.className = 'text-xs font-semibold tracking-widest uppercase text-stone-400 px-4 mb-1';
+    cat.textContent = sec.cat;
+    section.appendChild(cat);
+    sec.items.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'sidebar-item flex items-center gap-2 px-4 py-1.5 text-xs cursor-pointer border-l-2 border-transparent text-stone-500 hover:text-stone-700 hover:bg-stone-50';
+      el.dataset.name = item;
+      el.innerHTML = `<span class="w-1 h-1 rounded-full flex-shrink-0 bg-stone-300"></span>${item}`;
+      if (TEMPLATES[item]) {
+        el.addEventListener('click', () => {
+          loadTemplate(item);
+          if (isMobile) closeDrawer();
+        });
+      }
+      section.appendChild(el);
+    });
+    containerEl.appendChild(section);
   });
-  sidebarEl.appendChild(section);
+}
+
+buildSidebar(document.getElementById('sidebar-content'), false);
+buildSidebar(document.getElementById('mobile-sidebar-content'), true);
+
+// ── Mobile drawer ──────────────────────────────────────────────────────
+function openDrawer() {
+  document.getElementById('mobile-drawer').style.transform = 'translateX(0)';
+  document.getElementById('drawer-backdrop').style.opacity = '1';
+  document.getElementById('drawer-backdrop').style.pointerEvents = 'auto';
+}
+function closeDrawer() {
+  document.getElementById('mobile-drawer').style.transform = 'translateX(-100%)';
+  document.getElementById('drawer-backdrop').style.opacity = '0';
+  document.getElementById('drawer-backdrop').style.pointerEvents = 'none';
+}
+
+document.getElementById('btn-open-drawer').addEventListener('click', openDrawer);
+document.getElementById('btn-close-drawer').addEventListener('click', closeDrawer);
+document.getElementById('drawer-backdrop').addEventListener('click', closeDrawer);
+
+// Tap template header on mobile to open drawer
+document.getElementById('tpl-header').addEventListener('click', () => {
+  if (window.innerWidth < 768) openDrawer();
 });
 
-// Modal
+// ── Modal ─────────────────────────────────────────────────────────────
 const modal = document.getElementById('modal');
 document.getElementById('btn-open-modal').addEventListener('click', () => { modal.style.display = 'flex'; });
+document.getElementById('btn-open-modal-mobile').addEventListener('click', () => { closeDrawer(); modal.style.display = 'flex'; });
 document.getElementById('btn-close-modal').addEventListener('click', () => { modal.style.display = 'none'; });
 modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
 
-// Drag resize
+// ── Drag resize (desktop only) ─────────────────────────────────────────
 const promptSection = document.getElementById('prompt-section');
 const dragHandle = document.getElementById('drag-handle');
 let dragging = false, startY = 0, startH = 0;
@@ -1098,7 +1194,8 @@ document.addEventListener('mouseup', () => {
 });
 
 document.getElementById('prompt-editor').addEventListener('input', renderVars);
-  
+
+// ── Copy button ────────────────────────────────────────────────────────
 document.getElementById('btn-copy').addEventListener('click', () => {
   let text = document.getElementById('prompt-editor').value;
   const btn = document.getElementById('btn-copy');
@@ -1107,27 +1204,24 @@ document.getElementById('btn-copy').addEventListener('click', () => {
     navigator.clipboard.writeText(text).catch(() => {});
     btn.innerHTML = '&#10003; Copied!';
   } else {
-    const myTextarea = document.getElementById('prompt-editor');
-    myTextarea.value = text;
+    document.getElementById('prompt-editor').value = text;
     btn.innerHTML = '&#10003; Updated Text Above!';
   }
   btn.style.background = '#4a9e6b';
   setTimeout(() => {
     btn.innerHTML = '&#x2398; Copy Prompt to Clipboard';
     btn.style.background = '';
-  }, 2000);  
+  }, 2000);
 });
 
-// Share button
+// ── Share button ───────────────────────────────────────────────────────
 const shareBtn = document.getElementById('btn-share');
 const shareDropdown = document.getElementById('share-dropdown');
 
 shareBtn.addEventListener('click', (e) => {
   e.stopPropagation();
-  const isOpen = shareDropdown.style.display === 'block';
-  shareDropdown.style.display = isOpen ? 'none' : 'block';
+  shareDropdown.style.display = shareDropdown.style.display === 'block' ? 'none' : 'block';
 });
-
 document.addEventListener('click', (e) => {
   if (!document.getElementById('share-container').contains(e.target)) {
     shareDropdown.style.display = 'none';
@@ -1137,15 +1231,10 @@ document.addEventListener('click', (e) => {
 const SHARE_URL = 'https://hipedit.com';
 const SHARE_TEXT = 'Discover and use great AI prompt templates with HipEdit — no prompt engineering needed.';
 
-document.getElementById('share-x').href =
-  `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(SHARE_URL)}`;
-document.getElementById('share-linkedin').href =
-  `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(SHARE_URL)}`;
-document.getElementById('share-facebook').href =
-  `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SHARE_URL)}`;
-document.getElementById('share-reddit').href =
-  `https://reddit.com/submit?url=${encodeURIComponent(SHARE_URL)}&title=${encodeURIComponent(SHARE_TEXT)}`;
-
+document.getElementById('share-x').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(SHARE_URL)}`;
+document.getElementById('share-linkedin').href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(SHARE_URL)}`;
+document.getElementById('share-facebook').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SHARE_URL)}`;
+document.getElementById('share-reddit').href = `https://reddit.com/submit?url=${encodeURIComponent(SHARE_URL)}&title=${encodeURIComponent(SHARE_TEXT)}`;
 document.getElementById('share-x').target = '_blank';
 document.getElementById('share-linkedin').target = '_blank';
 document.getElementById('share-facebook').target = '_blank';
@@ -1162,7 +1251,7 @@ document.getElementById('share-copy').addEventListener('click', (e) => {
   }, 1500);
 });
 
-// Request a Template form → Formspree
+// ── Request a Template form ────────────────────────────────────────────
 document.getElementById('btn-submit-request').addEventListener('click', async () => {
   const name     = document.getElementById('req-name').value.trim();
   const category = document.getElementById('req-category').value.trim();
